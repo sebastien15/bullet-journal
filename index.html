@@ -1022,7 +1022,7 @@ function doPost(e) {
     const data = payload.data;
 
     // Persist full state JSON for load-back on new devices
-    PropertiesService.getScriptProperties().setProperty('STATE_JSON', e.postData.contents);
+    PropertiesService.getScriptProperties().setProperty('STATE_JSON', JSON.stringify(data));
 
     // Entries + Google Tasks + Google Calendar sync
     const taskIdMap = {};

@@ -1,4 +1,4 @@
-const CACHE = 'bujo-v3';
+const CACHE = 'bujo-v4';
 const ASSETS = [
   '/bullet-journal/',
   '/bullet-journal/index.html',

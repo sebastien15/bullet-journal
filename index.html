@@ -950,16 +950,28 @@ function getSheet(ss, name, headers) {
 }
 
 function doGet(e) {
-  // If data param present, treat as sync write (bypasses POST CORS issue)
+  // Load saved state back to client (new device / fresh browser)
+  if (e && e.parameter && e.parameter.action === 'load') {
+    const json = PropertiesService.getScriptProperties().getProperty('STATE_JSON');
+    if (json) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, state: JSON.parse(json) }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'no saved state' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  // Sync write via GET (bypasses POST CORS issue)
   if (e && e.parameter && e.parameter.data) {
     try {
       return doPost({ postData: { contents: e.parameter.data } });
     } catch(err) {
-      return ContentService.createTextOutput(JSON.stringify({ ok:false, error:err.toString() })).setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: err.toString() }))
+        .setMimeType(ContentService.MimeType.JSON);
     }
   }
   const ss = getOrCreateSpreadsheet();
-  return ContentService.createTextOutput(JSON.stringify({ ok:true, spreadsheetId:ss.getId() })).setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, spreadsheetId: ss.getId() }))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function doPost(e) {
@@ -968,31 +980,46 @@ function doPost(e) {
     const ss = getOrCreateSpreadsheet();
     const data = payload.data;
 
-    // Entries
+    // Persist full state JSON for load-back on new devices
+    PropertiesService.getScriptProperties().setProperty('STATE_JSON', e.postData.contents);
+
+    // Entries + Google Tasks sync
+    const taskIdMap = {};
     const es = getSheet(ss,'Entries',['id','year','month','day','date','type','text','reminderAt','migratedFrom','createdAt','googleTaskId']);
     es.clearContents();
     es.appendRow(['id','year','month','day','date','type','text','reminderAt','migratedFrom','createdAt','googleTaskId']);
     es.getRange(1,1,1,11).setFontWeight('bold').setBackground('#F3F0EB');
+
     (data.entries||[]).forEach(r => {
       const d = new Date(r.date);
       let taskId = r.googleTaskId || '';
-      try {
-        if ((r.type==='task'||r.type==='done') && r.reminderAt) {
-          const due = new Date(r.reminderAt).toISOString();
+
+      // Sync ALL tasks and done items to Google Tasks
+      if (r.type === 'task' || r.type === 'done') {
+        try {
+          const [yr, mo, dy] = r.date.split('-').map(Number);
+          const due = new Date(Date.UTC(yr, mo-1, dy)).toISOString();
           if (!taskId) {
-            const t = Tasks.newTask(); t.title=r.text; t.due=due;
-            taskId = Tasks.Tasks.insert(t,'@default').id;
+            const t = Tasks.newTask(); t.title = r.text; t.due = due;
+            taskId = Tasks.Tasks.insert(t, '@default').id;
           } else {
-            const t = Tasks.Tasks.get('@default',taskId);
-            t.title=r.text; t.due=due;
-            t.status = r.type==='done' ? 'completed' : 'needsAction';
-            Tasks.Tasks.update(t,'@default',taskId);
+            try {
+              const t = Tasks.Tasks.get('@default', taskId);
+              t.title = r.text; t.due = due;
+              t.status = r.type === 'done' ? 'completed' : 'needsAction';
+              Tasks.Tasks.update(t, '@default', taskId);
+            } catch(notFound) {
+              // Deleted externally — recreate
+              const t = Tasks.newTask(); t.title = r.text; t.due = due;
+              taskId = Tasks.Tasks.insert(t, '@default').id;
+            }
           }
-        } else if (r.type==='done' && taskId) {
-          const t = Tasks.Tasks.get('@default',taskId);
-          t.status='completed'; Tasks.Tasks.update(t,'@default',taskId);
+          taskIdMap[r.id] = taskId;
+        } catch(te) {
+          if (taskId) taskIdMap[r.id] = taskId;
         }
-      } catch(te) {}
+      }
+
       es.appendRow([r.id,d.getFullYear(),d.getMonth()+1,d.getDate(),r.date,r.type,r.text,r.reminderAt||'',r.migratedFrom||'',r.createdAt,taskId]);
     });
 
@@ -1018,9 +1045,15 @@ function doPost(e) {
     ms.appendRow(['lastOpenedDate',data.lastOpenedDate||'']);
     ms.appendRow(['lastSync',new Date().toISOString()]);
 
-    return ContentService.createTextOutput(JSON.stringify({ok:true,spreadsheetId:ss.getId()})).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({
+      ok: true,
+      spreadsheetId: ss.getId(),
+      taskIds: taskIdMap
+    })).setMimeType(ContentService.MimeType.JSON);
+
   } catch(err) {
-    return ContentService.createTextOutput(JSON.stringify({ok:false,error:err.toString()})).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }`;
 
@@ -1053,10 +1086,37 @@ async function doSync() {
     const json=await res.json();
     if(!json.ok){ setSyncStatus('error'); return; }
     if(json.spreadsheetId) localStorage.setItem('buJoSheetId',json.spreadsheetId);
+    // Persist Google Task IDs returned by Apps Script
+    if(json.taskIds && Object.keys(json.taskIds).length) {
+      state.data.entries.forEach(e=>{
+        if(json.taskIds[e.id]) e.googleTaskId=json.taskIds[e.id];
+      });
+      persist(state.data);
+    }
     renderSettingsState();
     setSyncStatus('saved');
     setTimeout(()=>setSyncStatus('idle'),3000);
   } catch(err){ setSyncStatus('error'); }
+}
+
+async function loadFromCloud() {
+  const url=localStorage.getItem('buJoGsUrl'); if(!url) return;
+  try {
+    const loadUrl=url+(url.includes('?')?'&':'?')+'action=load';
+    const res=await fetch(loadUrl);
+    const json=await res.json();
+    if(!json.ok || !json.state || !json.state.entries) return;
+    const cloud=json.state;
+    // Merge: union by id, cloud wins on conflicts
+    const cloudById=Object.fromEntries(cloud.entries.map(e=>[e.id,e]));
+    const localOnly=state.data.entries.filter(e=>!cloudById[e.id]);
+    state.data.entries=[...cloud.entries,...localOnly];
+    // Merge future log
+    state.data.futureLog=Object.assign({},state.data.futureLog,cloud.futureLog);
+    if(cloud.lastOpenedDate) state.data.lastOpenedDate=cloud.lastOpenedDate;
+    persist(state.data);
+    render();
+  } catch(e){}
 }
 
 document.getElementById('btn-gs-save-url').addEventListener('click',()=>{
@@ -1079,6 +1139,7 @@ state.data.entries.forEach(e=>arm(e));
 render();
 document.getElementById('logger-input').focus();
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/bullet-journal/sw.js');
+loadFromCloud(); // pull data from Google Sheets on startup (no-op if no URL)
 </script>
 </body>
 </html>

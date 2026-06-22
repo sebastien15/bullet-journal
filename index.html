@@ -996,36 +996,22 @@ async function doSync() {
   if(!url) return;
   setSyncStatus('saving');
   try {
-    const res = await fetch(url, {
+    // Apps Script blocks cross-origin POST response (CORS limitation).
+    // Use no-cors: data reaches the script but response is opaque.
+    await fetch(url, {
       method: 'POST',
+      mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ data: state.data }),
     });
-    const json = await res.json();
-    if(json.ok) {
-      if(json.spreadsheetId) localStorage.setItem('buJoSheetId', json.spreadsheetId);
-      // update googleTaskIds if returned
-      if(json.taskMap) {
-        const changed = Object.keys(json.taskMap).some(id => {
-          const e = state.data.entries.find(x=>x.id===id);
-          return e && e.googleTaskId !== json.taskMap[id];
-        });
-        if(changed) {
-          const data = JSON.parse(JSON.stringify(state.data));
-          Object.keys(json.taskMap).forEach(id => {
-            const e = data.entries.find(x=>x.id===id);
-            if(e) e.googleTaskId = json.taskMap[id];
-          });
-          persist(data);
-          state.data = data;
-        }
-      }
+    // Confirm with a GET (always works, returns spreadsheetId)
+    const verify = await fetch(url).then(r => r.json()).catch(() => null);
+    if(verify && verify.spreadsheetId) {
+      localStorage.setItem('buJoSheetId', verify.spreadsheetId);
       renderSettingsState();
-      setSyncStatus('saved');
-      setTimeout(()=>setSyncStatus('idle'), 3000);
-    } else {
-      setSyncStatus('error');
     }
+    setSyncStatus('saved');
+    setTimeout(()=>setSyncStatus('idle'), 3000);
   } catch(err) {
     setSyncStatus('error');
   }

@@ -1,4 +1,4 @@
-const CACHE = 'bujo-v4';
+const CACHE = 'bujo-v5';
 const ASSETS = [
   '/bullet-journal/',
   '/bullet-journal/index.html',
@@ -17,6 +17,8 @@ self.addEventListener('activate', ev => {
 
 self.addEventListener('fetch', ev => {
   if (ev.request.method !== 'GET') return;
+  // Only cache same-origin assets — never cache external API calls (Apps Script etc.)
+  if (new URL(ev.request.url).origin !== self.location.origin) return;
   ev.respondWith(
     caches.match(ev.request).then(cached => cached || fetch(ev.request).then(res => {
       const clone = res.clone();

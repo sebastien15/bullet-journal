@@ -476,6 +476,7 @@ function addTask(raw) {
 }
 
 function setType(id,type) {
+  state.sigMenuFor=null;
   let madeCopy=null;
   update(data=>{
     const e=data.entries.find(x=>x.id===id); if(!e) return;
@@ -485,7 +486,6 @@ function setType(id,type) {
       data.entries.push(copy); madeCopy=copy;
     }
   });
-  state.sigMenuFor=null;
   if(madeCopy) setTimeout(()=>arm(madeCopy),0);
 }
 
@@ -528,7 +528,7 @@ const encodeFut=(type,text)=>type==='note'?text:futGlyph(type)+' '+text;
 function futureLines(key){ return (state.data.futureLog[key]||'').split('\n').filter(l=>l.length>0); }
 function setFuture(key,text){ update(data=>{ data.futureLog[key]=text; }); }
 function setFutureLine(key,idx,val){ const lines=futureLines(key); const {type}=parseFut(lines[idx]||''); lines[idx]=encodeFut(type,val); setFuture(key,lines.join('\n')); }
-function setFutureType(key,idx,type){ const lines=futureLines(key); const {text}=parseFut(lines[idx]||''); lines[idx]=encodeFut(type,text); setFuture(key,lines.join('\n')); state.sigMenuFor=null; }
+function setFutureType(key,idx,type){ state.sigMenuFor=null; const lines=futureLines(key); const {text}=parseFut(lines[idx]||''); lines[idx]=encodeFut(type,text); setFuture(key,lines.join('\n')); }
 function addFutureLine(key,val,type){ const v=val.trim(); if(!v) return; const lines=futureLines(key); lines.push(encodeFut(type||'note',v)); setFuture(key,lines.join('\n')); }
 
 // ── drag ──────────────────────────────────────────────────────────────

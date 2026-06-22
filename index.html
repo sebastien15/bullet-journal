@@ -45,8 +45,8 @@
   .legend { display:flex; align-items:center; flex-wrap:wrap; gap:20px; height:60px; font-size:12.5px; color:#8E877B; border-bottom:1px solid rgba(33,28,22,0.08); }
 
   /* Logger row with type picker */
-  .logger-row { display:flex; align-items:center; gap:12px; height:60px; border-bottom:1px solid rgba(33,28,22,0.12); }
-  #logger-input { flex:1; border:none; background:transparent; outline:none; font-size:16px; padding:0; }
+  .logger-row { display:flex; align-items:flex-start; gap:12px; min-height:52px; border-bottom:1px solid rgba(33,28,22,0.12); padding:10px 0; }
+  #logger-input { flex:1; border:none; background:transparent; outline:none; font-size:16px; padding:0; resize:none; overflow:hidden; line-height:1.5; font-family:inherit; }
 
   /* Type picker (logger + add rows) */
   .type-pick-wrap { position:relative; flex:0 0 auto; }
@@ -61,13 +61,14 @@
   .sig-opt-btn:hover { background:rgba(194,65,12,0.09); }
 
   /* Entry rows */
-  .entry-row { display:flex; align-items:center; gap:12px; height:30px; cursor:grab; }
-  .entry-glyph-wrap { position:relative; flex:0 0 auto; }
-  .priority-bar { width:3px; flex:0 0 3px; align-self:stretch; border-radius:99px; background:#C2410C; transition:opacity 0.2s; }
+  .entry-row { display:flex; align-items:flex-start; gap:12px; min-height:30px; padding:5px 0; cursor:grab; }
+  .entry-glyph-wrap { position:relative; flex:0 0 auto; padding-top:2px; }
+  .priority-bar { width:3px; flex:0 0 3px; align-self:stretch; border-radius:99px; background:#C2410C; transition:opacity 0.2s; min-height:20px; }
   .entry-row.drag-top { box-shadow:0 -2px 0 #C2410C; }
   .entry-row.drag-bottom { box-shadow:0 2px 0 #C2410C; }
   .priority-hint { font-size:10.5px; letter-spacing:0.08em; color:#C4BDB5; display:flex; align-items:center; gap:6px; padding:6px 0 0; user-select:none; }
-  .entry-actions { display:flex; align-items:center; gap:10px; flex:0 0 auto; }
+  .entry-actions { display:flex; align-items:center; gap:10px; flex:0 0 auto; padding-top:1px; }
+  .entry-text { flex:1; min-width:0; border:none; background:transparent; outline:none; font-size:16px; line-height:1.5; padding:0; resize:none; overflow:hidden; font-family:inherit; }
   .move-panel { display:flex; align-items:center; flex-wrap:wrap; gap:14px; padding:2px 0 10px 32px; font-size:12px; color:#8E877B; }
 
   /* Monthly */
@@ -172,7 +173,7 @@
         <div class="type-pick-wrap" id="logger-type-wrap">
           <button id="logger-type-btn" class="type-pick-btn" style="color:#C2410C;">&#8226;</button>
         </div>
-        <input id="logger-input" placeholder="Type and press Enter…  (try &ldquo;Call mum at 7pm&rdquo;)" />
+        <textarea id="logger-input" rows="1" placeholder="Type and press Enter…  (try &ldquo;Call mum at 7pm&rdquo;)"></textarea>
       </div>
       <div id="daily-entries"></div>
     </div>
@@ -308,6 +309,7 @@ const monthShort = key => { const [y,m]=key.split('-').map(Number); return new D
 const monthLong = key => { const [y,m]=key.split('-').map(Number); return new Date(y,m-1,1).toLocaleDateString('en-US',{month:'long',year:'numeric'}); };
 const genId = () => (crypto.randomUUID ? crypto.randomUUID() : 'id'+Math.random().toString(36).slice(2)+Date.now());
 const escHtml = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function autoGrow(el){ el.style.height='auto'; el.style.height=el.scrollHeight+'px'; }
 
 // Week helpers
 function mondayOfWeek(d) {
@@ -460,7 +462,7 @@ function sigMenuHTML(menuKey) {
     ${SIG_OPTS.map(o=>`<button class="sig-opt-btn" data-action="sig" data-key="${menuKey}" data-type="${o.type}">
       <span style="width:16px;text-align:center;flex:0 0 auto;color:${o.col};">${o.glyph}</span>${o.label}
     </button>`).join('')}
-    <button class="sig-opt-btn" data-action="sigdelete" data-key="${menuKey}" style="color:#DC2626;border-top:1px solid rgba(220,38,38,0.15);margin-top:4px;padding-top:6px;">
+    <button class="sig-opt-btn" data-action="sigdelete" data-key="${menuKey}" style="color:#DC2626;margin-top:2px;">
       <span style="width:16px;text-align:center;flex:0 0 auto;">✕</span>Delete
     </button>
   </div>`;
@@ -679,7 +681,7 @@ function renderDaily(today) {
           <button data-action="sigmenu" data-key="${menuKey}" style="width:20px;flex:0 0 auto;text-align:center;font-size:16px;line-height:1.5;color:${glyphColor(e.type)};">${glyphFor(e.type)}</button>
           ${sigOpen?sigMenuHTML(menuKey):''}
         </div>
-        <input data-action="text" data-id="${e.id}" value="${escHtml(e.text)}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font-size:16px;line-height:1.5;padding:0;${done?'text-decoration:line-through;color:#A9A296;':'color:#211C16;'}" />
+        <textarea data-action="text" data-id="${e.id}" class="entry-text" style="${done?'text-decoration:line-through;color:#A9A296;':'color:#211C16;'}" rows="1">${escHtml(e.text)}</textarea>
         <div class="entry-actions">
           ${state.reminderFor===e.id?`<input type="time" value="${e.reminderAt?timeStr(e.reminderAt):''}" data-action="time" data-id="${e.id}" style="border:none;border-bottom:1px solid rgba(194,65,12,0.45);background:transparent;outline:none;font-size:12px;padding:1px 0;color:#B45309;width:86px;" />`:''}
           <button data-action="done" data-id="${e.id}" style="font-size:13px;line-height:1;color:${done?'#B45309':'#CFC8BC'};">&#10005;</button>
@@ -710,6 +712,7 @@ function renderDaily(today) {
       drag=null;
     });
     const inp=wrap.querySelector('[data-action="text"]');
+    inp.addEventListener('input',()=>autoGrow(inp));
     inp.addEventListener('change',ev=>setText(e.id,ev.target.value));
     inp.addEventListener('keydown',ev=>onEntryKey(ev,e.id,dailyOrder));
     wrap.querySelector('[data-action="sigmenu"]').addEventListener('click',()=>{ state.sigMenuFor=state.sigMenuFor===menuKey?null:menuKey; state.reminderFor=null; state.moveFor=null; render(); });
@@ -723,6 +726,7 @@ function renderDaily(today) {
     wrap.querySelector('[data-action="move"]').addEventListener('click',()=>{ state.moveFor=state.moveFor===e.id?null:e.id; state.reminderFor=null; state.sigMenuFor=null; render(); });
     if(state.moveFor===e.id) bindMovePanel(wrap,e);
     container.appendChild(wrap);
+    autoGrow(wrap.querySelector('[data-action="text"]'));
   });
   if(n>1){
     const hint=document.createElement('div');
@@ -863,7 +867,7 @@ function renderFuture() {
           <button data-action="sigmenuf" data-key="${menuKey}" style="width:18px;flex:0 0 auto;text-align:center;font-size:14px;line-height:1.5;color:${gc};">${futGlyph(p.type)}</button>
           ${sigOpen?sigMenuHTML(menuKey):''}
         </div>
-        <input value="${escHtml(p.text)}" data-action="futtext" data-fkey="${key}" data-idx="${idx}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font-size:14.5px;padding:2px 0;${p.type==='done'?'text-decoration:line-through;color:#A9A296;':'color:#211C16;'}" />
+        <textarea data-action="futtext" data-fkey="${key}" data-idx="${idx}" class="entry-text" style="font-size:14.5px;padding:2px 0;${p.type==='done'?'text-decoration:line-through;color:#A9A296;':'color:#211C16;'}" rows="1">${escHtml(p.text)}</textarea>
       </div>`;
     }).join('');
 
@@ -881,13 +885,14 @@ function renderFuture() {
     block.querySelectorAll('[data-action="sigmenuf"]').forEach(b=>b.addEventListener('click',()=>{ state.sigMenuFor=state.sigMenuFor===b.dataset.key?null:b.dataset.key; render(); }));
     block.querySelectorAll('[data-action="sig"]').forEach(b=>{ const row=b.closest('.fut-entry-row'); if(row) b.addEventListener('click',()=>setFutureType(row.dataset.fkey,parseInt(row.dataset.idx,10),b.dataset.type)); });
     block.querySelectorAll('[data-action="sigdelete"]').forEach(b=>{ const row=b.closest('.fut-entry-row'); if(row) b.addEventListener('click',()=>deleteFutureLine(row.dataset.fkey,parseInt(row.dataset.idx,10))); });
-    block.querySelectorAll('[data-action="futtext"]').forEach(inp=>inp.addEventListener('change',ev=>setFutureLine(inp.dataset.fkey,parseInt(inp.dataset.idx,10),ev.target.value)));
+    block.querySelectorAll('[data-action="futtext"]').forEach(inp=>{ inp.addEventListener('input',()=>autoGrow(inp)); inp.addEventListener('change',ev=>setFutureLine(inp.dataset.fkey,parseInt(inp.dataset.idx,10),ev.target.value)); });
 
     // future add row with type picker
     const futAddInput = block.querySelector('[data-action="futadd"]');
     futAddInput.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ addFutureLine(key,ev.target.value,getAddType(addKey)); ev.target.value=''; state.addTypes[addKey]='task'; render(); } });
     bindAddRowSig(block, addKey);
     container.appendChild(block);
+    block.querySelectorAll('[data-action="futtext"]').forEach(autoGrow);
   }
 }
 
@@ -957,7 +962,10 @@ document.getElementById('btn-week-prev').addEventListener('click',()=>{ state.vi
 document.getElementById('btn-week-next').addEventListener('click',()=>{ state.viewWeek=addDays(state.viewWeek,7); render(); });
 
 // logger
-document.getElementById('logger-input').addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ addTask(ev.target.value); ev.target.value=''; } });
+document.getElementById('logger-input').addEventListener('keydown',ev=>{
+  if(ev.key==='Enter'&&!ev.shiftKey){ ev.preventDefault(); addTask(ev.target.value); ev.target.value=''; autoGrow(ev.target); }
+});
+document.getElementById('logger-input').addEventListener('input',ev=>autoGrow(ev.target));
 document.getElementById('logger-type-btn').addEventListener('click',ev=>{ ev.stopPropagation(); state.loggerSigOpen=!state.loggerSigOpen; render(); });
 
 // ── settings ──────────────────────────────────────────────────────────

@@ -375,21 +375,9 @@ function update(mutator) {
 }
 
 function seedData() {
-  const today=todayISO(), yest=addDays(today,-1), now=Date.now();
   const fl={};
   for(let i=1;i<=6;i++) fl[monthKey(addMonths(new Date(),i))]='';
-  fl[monthKey(addMonths(new Date(),1))]='Renew passport\nQ3 planning offsite';
-  return {
-    lastOpenedDate: yest,
-    entries: [
-      {id:genId(),date:yest,type:'task',text:'Email the contractor',createdAt:now-90000000,reminderAt:null,migratedFrom:null,googleTaskId:null,googleCalendarEventId:null},
-      {id:genId(),date:today,type:'task',text:'Draft the client proposal',createdAt:now-5000,reminderAt:null,migratedFrom:null,googleTaskId:null,googleCalendarEventId:null},
-      {id:genId(),date:today,type:'done',text:'Morning review',createdAt:now-4000,reminderAt:null,migratedFrom:null,googleTaskId:null,googleCalendarEventId:null},
-      {id:genId(),date:today,type:'task',text:'Stretch + walk',createdAt:now-3000,reminderAt:null,migratedFrom:null,googleTaskId:null,googleCalendarEventId:null},
-      {id:genId(),date:today,type:'note',text:'Idea: weekly review ritual on Sundays',createdAt:now-2000,reminderAt:null,migratedFrom:null,googleTaskId:null,googleCalendarEventId:null},
-    ],
-    futureLog: fl,
-  };
+  return { lastOpenedDate: todayISO(), entries: [], futureLog: fl };
 }
 
 // ── migration ─────────────────────────────────────────────────────────

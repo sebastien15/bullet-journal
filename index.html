@@ -1190,19 +1190,26 @@ async function doSync() {
 
 async function loadFromCloud() {
   const url=localStorage.getItem('buJoGsUrl'); if(!url) return;
+  // Don't disrupt active editing
+  const active=document.activeElement;
+  const typing=active&&(active.tagName==='TEXTAREA'||active.tagName==='INPUT')&&active.id!=='logger-input';
+  if(typing) return;
   try {
     const loadUrl=url+(url.includes('?')?'&':'?')+'action=load';
     const res=await fetch(loadUrl);
     const json=await res.json();
-    if(!json.ok || !json.state || !json.state.entries) return;
+    if(!json.ok||!json.state||!json.state.entries) return;
     const cloud=json.state;
-    // Merge: union by id, cloud wins on conflicts
+    // Quick check: same entry ids → nothing changed, skip re-render
+    const localIds=new Set(state.data.entries.map(e=>e.id));
+    const cloudIds=new Set(cloud.entries.map(e=>e.id));
+    const same=localIds.size===cloudIds.size&&[...cloudIds].every(id=>localIds.has(id));
+    if(same) return;
+    // Merge: cloud entries + local-only entries (unsaved on this device)
     const cloudById=Object.fromEntries(cloud.entries.map(e=>[e.id,e]));
     const localOnly=state.data.entries.filter(e=>!cloudById[e.id]);
     state.data.entries=[...cloud.entries,...localOnly];
-    // Merge future log
     state.data.futureLog=Object.assign({},state.data.futureLog,cloud.futureLog);
-    if(cloud.lastOpenedDate) state.data.lastOpenedDate=cloud.lastOpenedDate;
     persist(state.data);
     render();
   } catch(e){}
@@ -1228,7 +1235,9 @@ state.data.entries.forEach(e=>arm(e));
 render();
 document.getElementById('logger-input').focus();
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/bullet-journal/sw.js');
-loadFromCloud(); // pull data from Google Sheets on startup (no-op if no URL)
+loadFromCloud();
+setInterval(loadFromCloud, 30000); // poll every 30s
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') loadFromCloud(); });
 </script>
 </body>
 </html>

@@ -256,6 +256,7 @@
         </div>
         <div class="settings-row">
           <button class="btn-secondary" id="btn-gs-sync-now">Sync now</button>
+          <button class="btn-secondary" id="btn-gs-share">Copy shareable link</button>
           <button class="btn-danger" id="btn-gs-disconnect">Disconnect</button>
         </div>
         <div id="gs-status-text" style="font-size:12px;color:#8E877B;margin-top:6px;"></div>
@@ -1209,6 +1210,14 @@ document.getElementById('btn-gs-save-url').addEventListener('click',()=>{
 });
 document.getElementById('btn-gs-disconnect').addEventListener('click',()=>{ localStorage.removeItem('buJoGsUrl'); localStorage.removeItem('buJoSheetId'); renderSettingsState(); setSyncStatus('idle'); });
 document.getElementById('btn-gs-sync-now').addEventListener('click',()=>doSync());
+document.getElementById('btn-gs-share').addEventListener('click',()=>{
+  const url=localStorage.getItem('buJoGsUrl'); if(!url) return;
+  const link=location.origin+location.pathname+'#gs='+encodeURIComponent(url);
+  navigator.clipboard.writeText(link).then(()=>{
+    const btn=document.getElementById('btn-gs-share'); btn.textContent='✓ Copied!';
+    setTimeout(()=>btn.textContent='Copy shareable link',2500);
+  });
+});
 document.getElementById('btn-gs-show-script').addEventListener('click',()=>{ state.gsScriptOpen=!state.gsScriptOpen; render(); });
 document.getElementById('btn-copy-script').addEventListener('click',()=>{
   navigator.clipboard.writeText(GS_SCRIPT).then(()=>{
@@ -1218,6 +1227,8 @@ document.getElementById('btn-copy-script').addEventListener('click',()=>{
 });
 
 // ── init ──────────────────────────────────────────────────────────────
+// Auto-configure GS URL from shareable link hash (#gs=<encoded-url>)
+(()=>{ const h=new URLSearchParams(location.hash.slice(1)); const g=h.get('gs'); if(g){ localStorage.setItem('buJoGsUrl',decodeURIComponent(g)); history.replaceState(null,'',location.pathname+location.search); } })();
 migrate();
 state.data.entries.forEach(e=>arm(e));
 render();

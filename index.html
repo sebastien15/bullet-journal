@@ -456,6 +456,9 @@ function sigMenuHTML(menuKey) {
     ${SIG_OPTS.map(o=>`<button class="sig-opt-btn" data-action="sig" data-key="${menuKey}" data-type="${o.type}">
       <span style="width:16px;text-align:center;flex:0 0 auto;color:${o.col};">${o.glyph}</span>${o.label}
     </button>`).join('')}
+    <button class="sig-opt-btn" data-action="sigdelete" data-key="${menuKey}" style="color:#DC2626;border-top:1px solid rgba(220,38,38,0.15);margin-top:4px;padding-top:6px;">
+      <span style="width:16px;text-align:center;flex:0 0 auto;">✕</span>Delete
+    </button>
   </div>`;
 }
 
@@ -488,6 +491,8 @@ function setType(id,type) {
 
 function setText(id,val){ update(data=>{ const e=data.entries.find(x=>x.id===id); if(e) e.text=val; }); }
 function toggleDone(id){ update(data=>{ const e=data.entries.find(x=>x.id===id); if(e) e.type=(e.type==='done'?'task':'done'); }); }
+function deleteEntry(id){ state.sigMenuFor=null; update(data=>{ data.entries=data.entries.filter(x=>x.id!==id); }); }
+function deleteFutureLine(fkey,idx){ state.sigMenuFor=null; update(data=>{ const lines=(data.futureLog[fkey]||'').split('\n').filter(l=>l); lines.splice(idx,1); data.futureLog[fkey]=lines.join('\n'); }); }
 
 function setReminderTime(id,hhmm) {
   if(!hhmm){ setReminder(id,null); state.reminderFor=null; render(); return; }
@@ -681,7 +686,10 @@ function renderDaily(today) {
     inp.addEventListener('change',ev=>setText(e.id,ev.target.value));
     inp.addEventListener('keydown',ev=>onEntryKey(ev,e.id,dailyOrder));
     wrap.querySelector('[data-action="sigmenu"]').addEventListener('click',()=>{ state.sigMenuFor=state.sigMenuFor===menuKey?null:menuKey; state.reminderFor=null; state.moveFor=null; render(); });
-    if(sigOpen) wrap.querySelectorAll('[data-action="sig"]').forEach(b=>b.addEventListener('click',()=>setType(e.id,b.dataset.type)));
+    if(sigOpen) {
+      wrap.querySelectorAll('[data-action="sig"]').forEach(b=>b.addEventListener('click',()=>setType(e.id,b.dataset.type)));
+      const delBtn=wrap.querySelector('[data-action="sigdelete"]'); if(delBtn) delBtn.addEventListener('click',()=>deleteEntry(e.id));
+    }
     wrap.querySelector('[data-action="done"]').addEventListener('click',()=>toggleDone(e.id));
     wrap.querySelector('[data-action="bell"]').addEventListener('click',()=>{ state.reminderFor=state.reminderFor===e.id?null:e.id; state.sigMenuFor=null; state.moveFor=null; render(); });
     if(state.reminderFor===e.id) wrap.querySelector('[data-action="time"]').addEventListener('change',ev=>setReminderTime(e.id,ev.target.value));
@@ -746,6 +754,7 @@ function renderWeekly(today) {
     row.querySelectorAll('.month-entry-row').forEach(er=>er.addEventListener('dragstart',ev=>{ drag={kind:'entry',id:er.dataset.id}; if(ev.dataTransfer) ev.dataTransfer.effectAllowed='move'; }));
     row.querySelectorAll('[data-action="sigmenum"]').forEach(b=>b.addEventListener('click',()=>{ state.sigMenuFor=state.sigMenuFor===b.dataset.key?null:b.dataset.key; render(); }));
     row.querySelectorAll('[data-action="sig"]').forEach(b=>{ const er=b.closest('[data-eid]'); if(er) b.addEventListener('click',()=>setType(er.dataset.eid,b.dataset.type)); });
+    row.querySelectorAll('[data-action="sigdelete"]').forEach(b=>{ const er=b.closest('[data-eid]'); if(er) b.addEventListener('click',()=>deleteEntry(er.dataset.eid)); });
     bindAddRow(row, addKey, (iso2,val,type)=>addMonthly(iso2,val,type), iso);
     container.appendChild(row);
   });
@@ -795,6 +804,7 @@ function renderMonthly(today) {
     row.querySelectorAll('.month-entry-row').forEach(er=>er.addEventListener('dragstart',ev=>{ drag={kind:'entry',id:er.dataset.id}; if(ev.dataTransfer) ev.dataTransfer.effectAllowed='move'; }));
     row.querySelectorAll('[data-action="sigmenum"]').forEach(b=>b.addEventListener('click',()=>{ state.sigMenuFor=state.sigMenuFor===b.dataset.key?null:b.dataset.key; render(); }));
     row.querySelectorAll('[data-action="sig"]').forEach(b=>{ const er=b.closest('[data-eid]'); if(er) b.addEventListener('click',()=>setType(er.dataset.eid,b.dataset.type)); });
+    row.querySelectorAll('[data-action="sigdelete"]').forEach(b=>{ const er=b.closest('[data-eid]'); if(er) b.addEventListener('click',()=>deleteEntry(er.dataset.eid)); });
     bindAddRow(row, addKey, (iso2,val,type)=>addMonthly(iso2,val,type), iso);
     container.appendChild(row);
   }
@@ -837,6 +847,7 @@ function renderFuture() {
     block.querySelectorAll('.fut-entry-row').forEach(er=>er.addEventListener('dragstart',ev=>{ drag={kind:'future',fkey:er.dataset.fkey,idx:parseInt(er.dataset.idx,10)}; if(ev.dataTransfer) ev.dataTransfer.effectAllowed='move'; }));
     block.querySelectorAll('[data-action="sigmenuf"]').forEach(b=>b.addEventListener('click',()=>{ state.sigMenuFor=state.sigMenuFor===b.dataset.key?null:b.dataset.key; render(); }));
     block.querySelectorAll('[data-action="sig"]').forEach(b=>{ const row=b.closest('.fut-entry-row'); if(row) b.addEventListener('click',()=>setFutureType(row.dataset.fkey,parseInt(row.dataset.idx,10),b.dataset.type)); });
+    block.querySelectorAll('[data-action="sigdelete"]').forEach(b=>{ const row=b.closest('.fut-entry-row'); if(row) b.addEventListener('click',()=>deleteFutureLine(row.dataset.fkey,parseInt(row.dataset.idx,10))); });
     block.querySelectorAll('[data-action="futtext"]').forEach(inp=>inp.addEventListener('change',ev=>setFutureLine(inp.dataset.fkey,parseInt(inp.dataset.idx,10),ev.target.value)));
 
     // future add row with type picker

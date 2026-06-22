@@ -960,7 +960,17 @@ function doPost(e) {
   }
 }
 
-function doGet() {
+function doGet(e) {
+  // If data param present, treat as a sync (GET-based write to bypass CORS on POST)
+  if (e && e.parameter && e.parameter.data) {
+    try {
+      return doPost({ postData: { contents: e.parameter.data } });
+    } catch(err) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ ok: false, error: err.toString() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
   const ss = getOrCreateSpreadsheet();
   return ContentService
     .createTextOutput(JSON.stringify({ ok: true, spreadsheetId: ss.getId() }))
@@ -996,20 +1006,14 @@ async function doSync() {
   if(!url) return;
   setSyncStatus('saving');
   try {
-    // Apps Script blocks cross-origin POST response (CORS limitation).
-    // Use no-cors: data reaches the script but response is opaque.
-    await fetch(url, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ data: state.data }),
-    });
-    // Confirm with a GET (always works, returns spreadsheetId)
-    const verify = await fetch(url).then(r => r.json()).catch(() => null);
-    if(verify && verify.spreadsheetId) {
-      localStorage.setItem('buJoSheetId', verify.spreadsheetId);
-      renderSettingsState();
-    }
+    // Apps Script 401s on cross-origin POST — send data via GET param instead.
+    const payload = encodeURIComponent(JSON.stringify({ data: state.data }));
+    const syncUrl = url + (url.includes('?') ? '&' : '?') + 'data=' + payload;
+    const res = await fetch(syncUrl);
+    const json = await res.json();
+    if(!json.ok) { setSyncStatus('error'); return; }
+    if(json.spreadsheetId) localStorage.setItem('buJoSheetId', json.spreadsheetId);
+    renderSettingsState();
     setSyncStatus('saved');
     setTimeout(()=>setSyncStatus('idle'), 3000);
   } catch(err) {

@@ -63,6 +63,10 @@
   /* Entry rows */
   .entry-row { display:flex; align-items:center; gap:12px; height:30px; cursor:grab; }
   .entry-glyph-wrap { position:relative; flex:0 0 auto; }
+  .priority-bar { width:3px; flex:0 0 3px; align-self:stretch; border-radius:99px; background:#C2410C; transition:opacity 0.2s; }
+  .entry-row.drag-top { box-shadow:0 -2px 0 #C2410C; }
+  .entry-row.drag-bottom { box-shadow:0 2px 0 #C2410C; }
+  .priority-hint { font-size:10.5px; letter-spacing:0.08em; color:#C4BDB5; display:flex; align-items:center; gap:6px; padding:6px 0 0; user-select:none; }
   .entry-actions { display:flex; align-items:center; gap:10px; flex:0 0 auto; }
   .move-panel { display:flex; align-items:center; flex-wrap:wrap; gap:14px; padding:2px 0 10px 32px; font-size:12px; color:#8E877B; }
 
@@ -492,6 +496,7 @@ function setType(id,type) {
 function setText(id,val){ update(data=>{ const e=data.entries.find(x=>x.id===id); if(e) e.text=val; }); }
 function toggleDone(id){ update(data=>{ const e=data.entries.find(x=>x.id===id); if(e) e.type=(e.type==='done'?'task':'done'); }); }
 function deleteEntry(id){ state.sigMenuFor=null; update(data=>{ data.entries=data.entries.filter(x=>x.id!==id); }); }
+function reorderEntry(id,targetId,after){ update(data=>{ const i=data.entries.findIndex(x=>x.id===id); if(i===-1) return; const [e]=data.entries.splice(i,1); const ti=data.entries.findIndex(x=>x.id===targetId); data.entries.splice(ti===-1?data.entries.length:(after?ti+1:ti),0,e); }); }
 function deleteFutureLine(fkey,idx){ state.sigMenuFor=null; update(data=>{ const lines=(data.futureLog[fkey]||'').split('\n').filter(l=>l); lines.splice(idx,1); data.futureLog[fkey]=lines.join('\n'); }); }
 
 function setReminderTime(id,hhmm) {
@@ -660,13 +665,16 @@ function renderDaily(today) {
   const entries=state.data.entries.filter(e=>e.date===today);
   const dailyOrder=entries.map(e=>e.id);
   const container=document.getElementById('daily-entries'); container.innerHTML='';
+  const n=entries.length;
+  const prioOpacity=i=>n<=1?1:Math.max(0.08,1-(i/(n-1))*0.92);
 
-  entries.forEach(e=>{
+  entries.forEach((e,i)=>{
     const done=e.type==='done';
     const menuKey=e.id, sigOpen=state.sigMenuFor===menuKey;
     const wrap=document.createElement('div');
     wrap.innerHTML=`
       <div class="entry-row" draggable="true" data-id="${e.id}">
+        <div class="priority-bar" style="opacity:${prioOpacity(i)};" title="drag to reprioritize"></div>
         <div class="entry-glyph-wrap">
           <button data-action="sigmenu" data-key="${menuKey}" style="width:20px;flex:0 0 auto;text-align:center;font-size:16px;line-height:1.5;color:${glyphColor(e.type)};">${glyphFor(e.type)}</button>
           ${sigOpen?sigMenuHTML(menuKey):''}
@@ -681,7 +689,26 @@ function renderDaily(today) {
       </div>
       ${state.moveFor===e.id?movePanelHTML(e):''}`;
 
-    wrap.querySelector('.entry-row').addEventListener('dragstart',ev=>{ drag={kind:'entry',id:e.id}; if(ev.dataTransfer) ev.dataTransfer.effectAllowed='move'; });
+    const row=wrap.querySelector('.entry-row');
+    row.addEventListener('dragstart',ev=>{ drag={kind:'entry',id:e.id}; if(ev.dataTransfer) ev.dataTransfer.effectAllowed='move'; });
+    row.addEventListener('dragover',ev=>{
+      if(!drag||drag.kind!=='entry') return;
+      ev.preventDefault();
+      const mid=row.getBoundingClientRect().top+row.getBoundingClientRect().height/2;
+      row.classList.toggle('drag-top',ev.clientY<mid);
+      row.classList.toggle('drag-bottom',ev.clientY>=mid);
+    });
+    row.addEventListener('dragleave',()=>row.classList.remove('drag-top','drag-bottom'));
+    row.addEventListener('drop',ev=>{
+      ev.preventDefault();
+      row.classList.remove('drag-top','drag-bottom');
+      if(!drag||drag.kind!=='entry'||drag.id===e.id) return;
+      const dragged=state.data.entries.find(x=>x.id===drag.id);
+      if(!dragged||dragged.date!==e.date) return; // different date — let existing month handler deal
+      const mid=row.getBoundingClientRect().top+row.getBoundingClientRect().height/2;
+      reorderEntry(drag.id,e.id,ev.clientY>=mid);
+      drag=null;
+    });
     const inp=wrap.querySelector('[data-action="text"]');
     inp.addEventListener('change',ev=>setText(e.id,ev.target.value));
     inp.addEventListener('keydown',ev=>onEntryKey(ev,e.id,dailyOrder));
@@ -697,6 +724,12 @@ function renderDaily(today) {
     if(state.moveFor===e.id) bindMovePanel(wrap,e);
     container.appendChild(wrap);
   });
+  if(n>1){
+    const hint=document.createElement('div');
+    hint.className='priority-hint';
+    hint.innerHTML=`<div style="display:flex;flex-direction:column;gap:2px;flex:0 0 3px;">${[1,0.5,0.15].map(o=>`<div style="width:3px;height:3px;border-radius:99px;background:#C2410C;opacity:${o};"></div>`).join('')}</div>top = highest priority`;
+    container.appendChild(hint);
+  }
 }
 
 function movePanelHTML(e) {

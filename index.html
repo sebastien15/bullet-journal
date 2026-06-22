@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bullet Journal</title>
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C2410C">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="BuJo">
-<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; height: 100%; }
@@ -118,6 +118,18 @@
   .toggle input:checked + .toggle-slider:before { transform:translateX(16px); }
 
   .hidden { display:none !important; }
+
+  @media (max-width: 640px) {
+    main { padding: 16px 10px 80px; }
+    nav { flex: 0 0 40px; width: 40px; }
+    .v-btn { font-size: 11px; padding: 6px 3px; }
+    .view-title { font-size: 19px; }
+    .month-row { gap: 6px; min-height: 24px; }
+    .week-row { gap: 6px; }
+    .week-day-label { width: 38px; font-size: 11px; padding-top: 4px; }
+    .month-date-label { width: 34px !important; font-size: 11px !important; }
+    .logger-row { gap: 8px; }
+  }
 </style>
 </head>
 <body class="dot-grid">
@@ -722,7 +734,7 @@ function renderWeekly(today) {
     }).join('');
 
     row.innerHTML=`
-      <div class="week-day-label" style="${labelColor}">${WL[wi]}<br><span style="font-size:18px;font-weight:700;">${dayNum}</span></div>
+      <div class="week-day-label" style="${labelColor}">${WL[wi]}<br><span style="font-size:15px;font-weight:700;">${dayNum}</span></div>
       <div class="week-entries-col">
         ${entriesHTML}
         <div class="month-add-row">
@@ -758,7 +770,7 @@ function renderMonthly(today) {
     row.addEventListener('dragover',ev=>ev.preventDefault());
     row.addEventListener('drop',()=>onDropDate(iso));
 
-    const labelStyle='flex:0 0 auto;width:46px;font-size:13px;'+(isToday?'color:#C2410C;font-weight:700;':'color:#6B655B;font-weight:500;');
+    const labelStyle='flex:0 0 auto;width:42px;font-size:12px;'+(isToday?'color:#C2410C;font-weight:700;':'color:#6B655B;font-weight:500;');
     const entriesHTML=dayEntries.map(e=>{
       const menuKey='M:'+e.id, sigOpen=state.sigMenuFor===menuKey;
       return `<div class="month-entry-row" draggable="true" data-id="${e.id}">
@@ -771,7 +783,7 @@ function renderMonthly(today) {
     }).join('');
 
     row.innerHTML=`
-      <div style="${labelStyle}">${day} ${wl[dow]}</div>
+      <div class="month-date-label" style="${labelStyle}">${day} ${wl[dow]}</div>
       <div class="month-entries-col">
         ${entriesHTML}
         <div class="month-add-row">

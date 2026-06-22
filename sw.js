@@ -1,5 +1,11 @@
 const CACHE = 'bujo-v2';
-const ASSETS = ['/', '/index.html', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png'];
+const ASSETS = [
+  '/bullet-journal/',
+  '/bullet-journal/index.html',
+  '/bullet-journal/manifest.json',
+  '/bullet-journal/icons/icon-192.png',
+  '/bullet-journal/icons/icon-512.png',
+];
 
 self.addEventListener('install', ev => {
   ev.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));

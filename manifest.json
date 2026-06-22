@@ -2,7 +2,7 @@
   "name": "Bullet Journal",
   "short_name": "BuJo",
   "description": "Personal bullet journal — daily, monthly, and future logs",
-  "start_url": "/",
+  "start_url": "/bullet-journal/",
   "display": "standalone",
   "background_color": "#FAFAF8",
   "theme_color": "#C2410C",

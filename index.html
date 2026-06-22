@@ -66,7 +66,7 @@
   .priority-bar { width:3px; flex:0 0 3px; align-self:stretch; border-radius:99px; background:#C2410C; transition:opacity 0.2s; min-height:20px; }
   .entry-row.drag-top { box-shadow:0 -2px 0 #C2410C; }
   .entry-row.drag-bottom { box-shadow:0 2px 0 #C2410C; }
-  .priority-hint { font-size:10.5px; letter-spacing:0.08em; color:#C4BDB5; display:flex; align-items:center; gap:6px; padding:6px 0 0; user-select:none; }
+  .priority-hint { position:fixed; bottom:14px; left:16px; font-size:10.5px; letter-spacing:0.08em; color:#C4BDB5; display:flex; align-items:center; gap:6px; user-select:none; pointer-events:none; z-index:5; }
   .entry-actions { display:flex; align-items:center; gap:10px; flex:0 0 auto; padding-top:1px; }
   .entry-text { flex:1; min-width:0; border:none; background:transparent; outline:none; font-size:16px; line-height:1.5; padding:0; resize:none; overflow:hidden; font-family:inherit; }
   .move-panel { display:flex; align-items:center; flex-wrap:wrap; gap:14px; padding:2px 0 10px 32px; font-size:12px; color:#8E877B; }

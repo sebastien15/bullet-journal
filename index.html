@@ -376,11 +376,11 @@ function seedData() {
   return {
     lastOpenedDate: yest,
     entries: [
-      {id:genId(),date:yest,type:'task',text:'Email the contractor',createdAt:now-90000000,reminderAt:null,migratedFrom:null,googleTaskId:null},
-      {id:genId(),date:today,type:'task',text:'Draft the client proposal',createdAt:now-5000,reminderAt:null,migratedFrom:null,googleTaskId:null},
-      {id:genId(),date:today,type:'done',text:'Morning review',createdAt:now-4000,reminderAt:null,migratedFrom:null,googleTaskId:null},
-      {id:genId(),date:today,type:'task',text:'Stretch + walk',createdAt:now-3000,reminderAt:null,migratedFrom:null,googleTaskId:null},
-      {id:genId(),date:today,type:'note',text:'Idea: weekly review ritual on Sundays',createdAt:now-2000,reminderAt:null,migratedFrom:null,googleTaskId:null},
+      {id:genId(),date:yest,type:'task',text:'Email the contractor',createdAt:now-90000000,reminderAt:null,migratedFrom:null,googleTaskId:null,googleCalendarEventId:null},
+      {id:genId(),date:today,type:'task',text:'Draft the client proposal',createdAt:now-5000,reminderAt:null,migratedFrom:null,googleTaskId:null,googleCalendarEventId:null},
+      {id:genId(),date:today,type:'done',text:'Morning review',createdAt:now-4000,reminderAt:null,migratedFrom:null,googleTaskId:null,googleCalendarEventId:null},
+      {id:genId(),date:today,type:'task',text:'Stretch + walk',createdAt:now-3000,reminderAt:null,migratedFrom:null,googleTaskId:null,googleCalendarEventId:null},
+      {id:genId(),date:today,type:'note',text:'Idea: weekly review ritual on Sundays',createdAt:now-2000,reminderAt:null,migratedFrom:null,googleTaskId:null,googleCalendarEventId:null},
     ],
     futureLog: fl,
   };
@@ -395,7 +395,7 @@ function migrate() {
     data.entries.forEach(e => {
       if(e.type==='task' && e.date<today) {
         e.type='migrated';
-        fresh.push({id:genId(),date:today,type:'task',text:e.text,createdAt:Date.now(),reminderAt:e.reminderAt,migratedFrom:e.date,googleTaskId:null});
+        fresh.push({id:genId(),date:today,type:'task',text:e.text,createdAt:Date.now(),reminderAt:e.reminderAt,migratedFrom:e.date,googleTaskId:null,googleCalendarEventId:null});
       }
     });
     data.entries=fresh.concat(data.entries);
@@ -464,7 +464,7 @@ function addTask(raw) {
   const text=raw.trim(); if(!text) return;
   const parsed=parseReminder(text);
   const id=genId();
-  const entry={id,date:todayISO(),type:state.loggerType,text:parsed?parsed.clean:text,createdAt:Date.now(),reminderAt:parsed?parsed.at:null,migratedFrom:null,googleTaskId:null};
+  const entry={id,date:todayISO(),type:state.loggerType,text:parsed?parsed.clean:text,createdAt:Date.now(),reminderAt:parsed?parsed.at:null,migratedFrom:null,googleTaskId:null,googleCalendarEventId:null};
   if(parsed) maybePerm();
   state.loggerType='task'; // reset after add
   state.loggerSigOpen=false;
@@ -478,7 +478,7 @@ function setType(id,type) {
     const e=data.entries.find(x=>x.id===id); if(!e) return;
     e.type=type;
     if(type==='migrated'){
-      const copy={id:genId(),date:addDays(e.date,1),type:'task',text:e.text,createdAt:Date.now(),reminderAt:e.reminderAt,migratedFrom:e.date,googleTaskId:null};
+      const copy={id:genId(),date:addDays(e.date,1),type:'task',text:e.text,createdAt:Date.now(),reminderAt:e.reminderAt,migratedFrom:e.date,googleTaskId:null,googleCalendarEventId:null};
       data.entries.push(copy); madeCopy=copy;
     }
   });
@@ -510,7 +510,7 @@ function reassignMonth(id,key) {
   }); state.moveFor=null;
 }
 function reassignDate(id,iso){ update(data=>{ const e=data.entries.find(x=>x.id===id); if(e) e.date=iso; }); state.moveFor=null; }
-function addMonthly(iso,val,type){ const text=val.trim(); if(!text) return; update(data=>{ data.entries.push({id:genId(),date:iso,type:type||'task',text,createdAt:Date.now(),reminderAt:null,migratedFrom:null,googleTaskId:null}); }); }
+function addMonthly(iso,val,type){ const text=val.trim(); if(!text) return; update(data=>{ data.entries.push({id:genId(),date:iso,type:type||'task',text,createdAt:Date.now(),reminderAt:null,migratedFrom:null,googleTaskId:null,googleCalendarEventId:null}); }); }
 
 // ── future log ────────────────────────────────────────────────────────
 const futGlyph = t => t==='done'?'✕':t==='migrated'?'→':t==='task'?'•':'–';
@@ -533,7 +533,7 @@ function onDropMonth(key) {
   else if(d.kind==='future') {
     const lines=futureLines(d.fkey); if(lines[d.idx]==null) return;
     const {type,text}=parseFut(lines[d.idx]); lines.splice(d.idx,1);
-    update(data=>{ data.futureLog[d.fkey]=lines.join('\n'); data.entries.push({id:genId(),date:key+'-01',type:type==='note'?'task':type,text,createdAt:Date.now(),reminderAt:null,migratedFrom:null,googleTaskId:null}); });
+    update(data=>{ data.futureLog[d.fkey]=lines.join('\n'); data.entries.push({id:genId(),date:key+'-01',type:type==='note'?'task':type,text,createdAt:Date.now(),reminderAt:null,migratedFrom:null,googleTaskId:null,googleCalendarEventId:null}); });
   }
 }
 function onDropDate(iso) {
@@ -542,7 +542,7 @@ function onDropDate(iso) {
   else if(d.kind==='future') {
     const lines=futureLines(d.fkey); if(lines[d.idx]==null) return;
     const {type,text}=parseFut(lines[d.idx]); lines.splice(d.idx,1);
-    update(data=>{ data.futureLog[d.fkey]=lines.join('\n'); data.entries.push({id:genId(),date:iso,type:type==='note'?'task':type,text,createdAt:Date.now(),reminderAt:null,migratedFrom:null,googleTaskId:null}); });
+    update(data=>{ data.futureLog[d.fkey]=lines.join('\n'); data.entries.push({id:genId(),date:iso,type:type==='note'?'task':type,text,createdAt:Date.now(),reminderAt:null,migratedFrom:null,googleTaskId:null,googleCalendarEventId:null}); });
   }
 }
 
@@ -983,16 +983,20 @@ function doPost(e) {
     // Persist full state JSON for load-back on new devices
     PropertiesService.getScriptProperties().setProperty('STATE_JSON', e.postData.contents);
 
-    // Entries + Google Tasks sync
+    // Entries + Google Tasks + Google Calendar sync
     const taskIdMap = {};
-    const es = getSheet(ss,'Entries',['id','year','month','day','date','type','text','reminderAt','migratedFrom','createdAt','googleTaskId']);
+    const calIdMap = {};
+    const es = getSheet(ss,'Entries',['id','year','month','day','date','type','text','reminderAt','migratedFrom','createdAt','googleTaskId','googleCalendarEventId']);
     es.clearContents();
-    es.appendRow(['id','year','month','day','date','type','text','reminderAt','migratedFrom','createdAt','googleTaskId']);
-    es.getRange(1,1,1,11).setFontWeight('bold').setBackground('#F3F0EB');
+    es.appendRow(['id','year','month','day','date','type','text','reminderAt','migratedFrom','createdAt','googleTaskId','googleCalendarEventId']);
+    es.getRange(1,1,1,12).setFontWeight('bold').setBackground('#F3F0EB');
+
+    const cal = CalendarApp.getDefaultCalendar();
 
     (data.entries||[]).forEach(r => {
       const d = new Date(r.date);
       let taskId = r.googleTaskId || '';
+      let calEventId = r.googleCalendarEventId || '';
 
       // Sync ALL tasks and done items to Google Tasks
       if (r.type === 'task' || r.type === 'done') {
@@ -1009,7 +1013,6 @@ function doPost(e) {
               t.status = r.type === 'done' ? 'completed' : 'needsAction';
               Tasks.Tasks.update(t, '@default', taskId);
             } catch(notFound) {
-              // Deleted externally — recreate
               const t = Tasks.newTask(); t.title = r.text; t.due = due;
               taskId = Tasks.Tasks.insert(t, '@default').id;
             }
@@ -1020,7 +1023,39 @@ function doPost(e) {
         }
       }
 
-      es.appendRow([r.id,d.getFullYear(),d.getMonth()+1,d.getDate(),r.date,r.type,r.text,r.reminderAt||'',r.migratedFrom||'',r.createdAt,taskId]);
+      // Sync to Google Calendar if a reminder time is set
+      if (r.reminderAt) {
+        try {
+          const start = new Date(r.reminderAt);
+          const end = new Date(r.reminderAt + 30 * 60 * 1000);
+          if (!calEventId) {
+            const ev = cal.createEvent(r.text, start, end);
+            ev.addPopupReminder(0);
+            calEventId = ev.getId();
+          } else {
+            try {
+              const ev = cal.getEventById(calEventId);
+              if (ev) {
+                ev.setTitle(r.text);
+                ev.setTime(start, end);
+              } else {
+                const ev2 = cal.createEvent(r.text, start, end);
+                ev2.addPopupReminder(0);
+                calEventId = ev2.getId();
+              }
+            } catch(notFound) {
+              const ev2 = cal.createEvent(r.text, start, end);
+              ev2.addPopupReminder(0);
+              calEventId = ev2.getId();
+            }
+          }
+          calIdMap[r.id] = calEventId;
+        } catch(ce) {
+          if (calEventId) calIdMap[r.id] = calEventId;
+        }
+      }
+
+      es.appendRow([r.id,d.getFullYear(),d.getMonth()+1,d.getDate(),r.date,r.type,r.text,r.reminderAt||'',r.migratedFrom||'',r.createdAt,taskId,calEventId]);
     });
 
     // FutureLog
@@ -1048,7 +1083,8 @@ function doPost(e) {
     return ContentService.createTextOutput(JSON.stringify({
       ok: true,
       spreadsheetId: ss.getId(),
-      taskIds: taskIdMap
+      taskIds: taskIdMap,
+      calendarEventIds: calIdMap
     })).setMimeType(ContentService.MimeType.JSON);
 
   } catch(err) {
@@ -1086,10 +1122,11 @@ async function doSync() {
     const json=await res.json();
     if(!json.ok){ setSyncStatus('error'); return; }
     if(json.spreadsheetId) localStorage.setItem('buJoSheetId',json.spreadsheetId);
-    // Persist Google Task IDs returned by Apps Script
-    if(json.taskIds && Object.keys(json.taskIds).length) {
+    // Persist Google Task + Calendar IDs returned by Apps Script
+    if((json.taskIds && Object.keys(json.taskIds).length) || (json.calendarEventIds && Object.keys(json.calendarEventIds).length)) {
       state.data.entries.forEach(e=>{
-        if(json.taskIds[e.id]) e.googleTaskId=json.taskIds[e.id];
+        if(json.taskIds?.[e.id]) e.googleTaskId=json.taskIds[e.id];
+        if(json.calendarEventIds?.[e.id]) e.googleCalendarEventId=json.calendarEventIds[e.id];
       });
       persist(state.data);
     }

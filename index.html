@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bullet Journal</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#C2410C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="BuJo">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  input, textarea, button { font: inherit; color: inherit; -webkit-appearance: none; }
+  button { background: none; border: none; padding: 0; cursor: pointer; }
+  ::placeholder { color: #A39B8D; }
+  ::selection { background: rgba(194,65,12,0.16); }
+  .bj-scroll::-webkit-scrollbar { width: 0; height: 0; }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    color: #211C16;
+    background: #FAFAF8;
+    font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  body.dot-grid {
+    background-image: radial-gradient(circle, rgba(120,85,55,0.20) 1.5px, transparent 1.6px);
+    background-size: 30px 30px;
+  }
+  body.sans { font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+
+  nav {
+    order: 2; flex: 0 0 52px; width: 52px; height: 100vh;
+    position: sticky; top: 0;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 18px 0 16px; gap: 10px; background: transparent;
+  }
+  .rail-scroll {
+    flex: 0 1 auto; min-height: 0; max-height: 60vh; overflow-y: auto;
+    display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 4px 0;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+  }
+  .rail-bottom { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .v-btn {
+    writing-mode: vertical-rl; text-orientation: mixed;
+    font-size: 13px; letter-spacing: 0.1em; line-height: 1;
+    padding: 7px 4px; border-radius: 9px; border: none; cursor: pointer;
+  }
+  .sync-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #D1CCC5;
+    transition: background 0.3s;
+  }
+  .sync-dot.pending { background: #C2410C; animation: pulse 1s infinite; }
+  .sync-dot.saving  { background: #D97706; animation: pulse 0.6s infinite; }
+  .sync-dot.saved   { background: #16A34A; animation: none; }
+  .sync-dot.error   { background: #DC2626; animation: none; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  main { order: 1; flex: 1 1 auto; min-width: 0; padding: 30px 40px 80px; }
+  .main-inner { max-width: 680px; margin: 0 auto; }
+
+  .view-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 60px; }
+  .view-label { font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #C2410C; margin-bottom: 5px; }
+  .view-title { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; line-height: 1; }
+  .legend { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; height: 60px; font-size: 12.5px; color: #8E877B; border-bottom: 1px solid rgba(33,28,22,0.08); }
+  .logger-row { display: flex; align-items: center; gap: 12px; height: 60px; border-bottom: 1px solid rgba(33,28,22,0.12); }
+  .logger-plus { width: 20px; text-align: center; color: #C2410C; font-size: 18px; }
+  #logger-input { flex: 1; border: none; background: transparent; outline: none; font-size: 16px; padding: 0; }
+
+  .entry-row { display: flex; align-items: center; gap: 12px; height: 30px; cursor: grab; position: relative; }
+  .entry-glyph-wrap { position: relative; flex: 0 0 auto; }
+  .sig-menu {
+    position: absolute; top: 100%; left: 0; z-index: 30; margin-top: 6px;
+    background: #FFFDFA; border: 1px solid rgba(33,28,22,0.13); border-radius: 10px;
+    padding: 5px; width: 140px; box-shadow: 0 10px 26px rgba(70,45,20,0.15);
+  }
+  .sig-menu-title { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #B0A899; padding: 4px 8px 6px; }
+  .sig-opt-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border-radius: 6px; font-size: 13.5px; color: #3A352D; background: none; border: none; cursor: pointer; text-align: left; }
+  .sig-opt-btn:hover { background: rgba(194,65,12,0.09); }
+  .entry-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+  .move-panel { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; padding: 2px 0 10px 32px; font-size: 12px; color: #8E877B; }
+
+  .month-row { display: flex; align-items: center; gap: 14px; min-height: 30px; }
+  .month-entries-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; justify-content: center; }
+  .month-entry-row { display: flex; align-items: center; gap: 9px; cursor: grab; }
+  .month-add-label { display: flex; align-items: center; gap: 9px; cursor: text; min-height: 26px; }
+
+  .fut-month-block { margin-bottom: 26px; }
+  .fut-entry-row { display: flex; align-items: center; gap: 9px; cursor: grab; }
+
+  /* Modals */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(33,28,22,0.34);
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .modal-box {
+    background: #FFFDFA; border-radius: 16px; padding: 26px 28px 28px;
+    width: 340px; max-width: 100%; box-shadow: 0 20px 60px rgba(40,25,10,0.28);
+  }
+  .modal-box.wide { width: 520px; }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .modal-title { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #C2410C; font-weight: 600; }
+  .modal-close { font-size: 15px; color: #A9A296; line-height: 1; }
+  .modal-close:hover { color: #211C16; }
+
+  /* Settings */
+  .settings-section { margin-bottom: 22px; }
+  .settings-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #B0A899; margin-bottom: 8px; }
+  .settings-input {
+    width: 100%; border: none; border-bottom: 1px solid rgba(33,28,22,0.2);
+    background: transparent; outline: none; font-size: 13px; padding: 4px 0; color: #211C16;
+  }
+  .settings-input:focus { border-bottom-color: #C2410C; }
+  .settings-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .btn-primary {
+    padding: 7px 16px; border-radius: 8px;
+    border: 1px solid rgba(194,65,12,0.4); background: rgba(194,65,12,0.08);
+    color: #C2410C; font-size: 13px; cursor: pointer; font-weight: 600;
+  }
+  .btn-primary:hover { background: rgba(194,65,12,0.16); }
+  .btn-secondary {
+    padding: 7px 16px; border-radius: 8px;
+    border: 1px solid rgba(33,28,22,0.15); background: transparent;
+    color: #6B655B; font-size: 13px; cursor: pointer;
+  }
+  .btn-secondary:hover { background: rgba(33,28,22,0.05); }
+  .btn-danger {
+    padding: 7px 16px; border-radius: 8px;
+    border: 1px solid rgba(220,38,38,0.3); background: transparent;
+    color: #DC2626; font-size: 13px; cursor: pointer;
+  }
+  .status-connected { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #16A34A; margin-top: 8px; }
+  .status-connected a { color: #C2410C; text-decoration: none; font-size: 12px; }
+  .status-connected a:hover { text-decoration: underline; }
+
+  .script-box {
+    background: #F3F0EB; border-radius: 8px; padding: 12px 14px;
+    font-size: 11px; overflow-x: auto; white-space: pre; color: #211C16;
+    max-height: 160px; overflow-y: auto; margin-top: 10px;
+    font-family: ui-monospace, monospace;
+  }
+
+  /* Toggle */
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
+  .toggle-label { font-size: 13px; color: #3A352D; }
+  .toggle { position: relative; width: 36px; height: 20px; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; inset: 0; background: #D1CCC5; border-radius: 20px; cursor: pointer; transition: 0.2s;
+  }
+  .toggle-slider:before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: 0.2s; }
+  .toggle input:checked + .toggle-slider { background: #C2410C; }
+  .toggle input:checked + .toggle-slider:before { transform: translateX(16px); }
+
+  /* Year modal */
+  .year-nav { display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 22px; }
+  .year-display { font-size: 40px; font-weight: 700; letter-spacing: -0.01em; color: #211C16; min-width: 128px; text-align: center; }
+  .recent-years-title { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #B0A899; margin-bottom: 11px; }
+  .recent-years { display: flex; flex-wrap: wrap; gap: 9px; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body class="dot-grid">
+
+<nav>
+  <button id="btn-fut" class="v-btn"></button>
+  <div class="bj-scroll rail-scroll" id="rail-months"></div>
+  <div class="rail-bottom">
+    <button id="btn-today" class="v-btn"></button>
+    <button id="btn-year" style="writing-mode:vertical-rl;text-orientation:mixed;font-size:11px;letter-spacing:0.12em;color:#6B655B;font-weight:700;background:none;border:none;cursor:pointer;padding:5px 3px;border-radius:7px;"></button>
+    <div class="sync-dot" id="sync-dot" title="sync status"></div>
+    <button id="btn-settings" title="Settings" style="font-size:16px;color:#A9A296;padding:4px;border-radius:7px;">⚙</button>
+  </div>
+</nav>
+
+<main>
+  <div class="main-inner">
+    <div id="view-daily" class="hidden">
+      <div class="view-header">
+        <div>
+          <div class="view-label">Daily Log</div>
+          <div class="view-title" id="daily-date"></div>
+        </div>
+        <button id="btn-legend" style="font-size:12px;color:#8E877B;letter-spacing:0.04em;"></button>
+      </div>
+      <div id="legend-row" class="legend hidden">
+        <span><span style="display:inline-block;width:16px;color:#C2410C;">&bull;</span> task</span>
+        <span><span style="display:inline-block;width:16px;color:#211C16;">&#10005;</span> done</span>
+        <span><span style="display:inline-block;width:16px;color:#211C16;">&#8594;</span> migrated</span>
+        <span><span style="display:inline-block;width:16px;color:#211C16;">&ndash;</span> note</span>
+      </div>
+      <div class="logger-row">
+        <span class="logger-plus">&#43;</span>
+        <input id="logger-input" placeholder="Type a task and press Enter…  (try &ldquo;Call mum at 7pm&rdquo;)" />
+      </div>
+      <div id="daily-entries"></div>
+    </div>
+
+    <div id="view-monthly" class="hidden">
+      <div style="height:60px;display:flex;flex-direction:column;justify-content:center;">
+        <div class="view-label">Monthly Log</div>
+        <div class="view-title" id="monthly-title"></div>
+      </div>
+      <div id="monthly-rows"></div>
+    </div>
+
+    <div id="view-future" class="hidden">
+      <div style="height:60px;display:flex;flex-direction:column;justify-content:center;">
+        <div class="view-label">Future Log</div>
+        <div class="view-title">Next six months</div>
+      </div>
+      <div id="future-months"></div>
+    </div>
+  </div>
+</main>
+
+<!-- Year Modal -->
+<div id="year-modal" class="modal-overlay hidden">
+  <div class="modal-box" id="year-modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Choose year</div>
+      <button id="btn-close-year" class="modal-close">&#10005;</button>
+    </div>
+    <div class="year-nav">
+      <button id="btn-year-down" style="font-size:24px;color:#A9A296;line-height:1;padding:4px;">&#8249;</button>
+      <div class="year-display" id="year-display"></div>
+      <button id="btn-year-up" style="font-size:24px;color:#A9A296;line-height:1;padding:4px;">&#8250;</button>
+    </div>
+    <div class="recent-years-title">Years with entries</div>
+    <div class="recent-years" id="recent-years"></div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settings-modal" class="modal-overlay hidden">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <div class="modal-title">Settings</div>
+      <button id="btn-close-settings" class="modal-close">&#10005;</button>
+    </div>
+
+    <!-- Google Integration -->
+    <div class="settings-section">
+      <div class="settings-label">Google Sheets &amp; Tasks</div>
+
+      <div id="gs-not-connected">
+        <div style="font-size:13px;color:#6B655B;line-height:1.6;margin-bottom:10px;">
+          Auto-saves to your Google Sheet and creates reminders in Google Tasks.
+        </div>
+        <div style="font-size:12px;color:#8E877B;margin-bottom:6px;">Step 1 — paste your Apps Script URL:</div>
+        <input id="gs-url-input" class="settings-input" placeholder="https://script.google.com/macros/s/…/exec" />
+        <div class="settings-row" style="margin-top:10px;">
+          <button class="btn-primary" id="btn-gs-save-url">Connect</button>
+          <button class="btn-secondary" id="btn-gs-show-script">How to get the URL →</button>
+        </div>
+      </div>
+
+      <div id="gs-connected" class="hidden">
+        <div class="status-connected">
+          <span>✓ Connected</span>
+          <a id="gs-sheet-link" href="#" target="_blank">Open your BulletJournal sheet →</a>
+        </div>
+        <div class="settings-row" style="margin-top:10px;">
+          <button class="btn-secondary" id="btn-gs-sync-now">Sync now</button>
+          <button class="btn-danger" id="btn-gs-disconnect">Disconnect</button>
+        </div>
+        <div id="gs-status-text" style="font-size:12px;color:#8E877B;margin-top:6px;"></div>
+      </div>
+
+      <!-- Script setup guide (hidden by default) -->
+      <div id="gs-script-guide" class="hidden" style="margin-top:14px;">
+        <div style="font-size:12px;color:#6B655B;line-height:1.7;margin-bottom:8px;">
+          <b>One-time setup (5 min):</b><br>
+          1. Go to <a href="https://script.google.com" target="_blank" style="color:#C2410C;">script.google.com</a> → New project<br>
+          2. Delete existing code, paste the script below<br>
+          3. Click <b>Deploy → New deployment → Web app</b><br>
+          4. Execute as: <b>Me</b> &nbsp;|&nbsp; Who has access: <b>Anyone</b><br>
+          5. Copy the URL → paste above
+        </div>
+        <div class="script-box" id="gs-script-code"></div>
+        <button class="btn-primary" id="btn-copy-script" style="margin-top:8px;">Copy script</button>
+      </div>
+    </div>
+
+    <!-- Appearance -->
+    <div class="settings-section">
+      <div class="settings-label">Appearance</div>
+      <div class="toggle-row">
+        <span class="toggle-label">Dot grid background</span>
+        <label class="toggle"><input type="checkbox" id="toggle-dotgrid" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Sans-serif font</span>
+        <label class="toggle"><input type="checkbox" id="toggle-sans"><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+
+    <!-- Data -->
+    <div class="settings-section">
+      <div class="settings-label">Data</div>
+      <div class="settings-row">
+        <button class="btn-secondary" id="btn-export">Export JSON</button>
+        <button class="btn-danger" id="btn-clear-data">Clear all data</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── helpers ───────────────────────────────────────────────────────────
+const pad = n => String(n).padStart(2,'0');
+const toISO = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const monthKey = d => d.getFullYear()+'-'+pad(d.getMonth()+1);
+const fromISO = s => { const [y,m,dd]=s.split('-').map(Number); return new Date(y,m-1,dd); };
+const todayISO = () => toISO(new Date());
+const addDays = (iso,n) => { const d=fromISO(iso); d.setDate(d.getDate()+n); return toISO(d); };
+const addMonths = (d,n) => new Date(d.getFullYear(),d.getMonth()+n,1);
+const daysInMonth = (y,m) => new Date(y,m,0).getDate();
+const monthShort = key => { const [y,m]=key.split('-').map(Number); return new Date(y,m-1,1).toLocaleDateString('en-US',{month:'short'}).toUpperCase(); };
+const monthLong = key => { const [y,m]=key.split('-').map(Number); return new Date(y,m-1,1).toLocaleDateString('en-US',{month:'long',year:'numeric'}); };
+const genId = () => (crypto.randomUUID ? crypto.randomUUID() : 'id'+Math.random().toString(36).slice(2)+Date.now());
+const escHtml = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+// ── state ─────────────────────────────────────────────────────────────
+const RAIL_COLORS = ['#C2410C','#D97706','#B45309','#D85A30','#BA7517','#993C1D'];
+const railColor = i => RAIL_COLORS[i % RAIL_COLORS.length];
+
+let state = {
+  data: loadData(),
+  view: 'daily',
+  viewMonth: monthKey(new Date()),
+  viewYear: new Date().getFullYear(),
+  legendOpen: false,
+  moveFor: null,
+  reminderFor: null,
+  sigMenuFor: null,
+  yearModalOpen: false,
+  settingsOpen: false,
+  gsScriptOpen: false,
+};
+
+const timers = {};
+let drag = null;
+
+// ── persistence ───────────────────────────────────────────────────────
+function loadData() {
+  try { const r=localStorage.getItem('buJoState'); if(r) return JSON.parse(r); } catch(e){}
+  return seedData();
+}
+function persist(data) { try { localStorage.setItem('buJoState',JSON.stringify(data)); } catch(e){} }
+function update(mutator) {
+  const data = JSON.parse(JSON.stringify(state.data));
+  mutator(data);
+  persist(data);
+  state.data = data;
+  render();
+  scheduleSync();
+}
+
+function seedData() {
+  const today=todayISO(), yest=addDays(today,-1), now=Date.now();
+  const fl={};
+  for(let i=1;i<=6;i++) fl[monthKey(addMonths(new Date(),i))]='';
+  const nextM=monthKey(addMonths(new Date(),1));
+  fl[nextM]='Renew passport\nQ3 planning offsite';
+  return {
+    lastOpenedDate: yest,
+    entries: [
+      {id:genId(),date:yest,type:'task',text:'Email the contractor',createdAt:now-90000000,reminderAt:null,migratedFrom:null,googleTaskId:null},
+      {id:genId(),date:today,type:'task',text:'Draft the client proposal',createdAt:now-5000,reminderAt:null,migratedFrom:null,googleTaskId:null},
+      {id:genId(),date:today,type:'done',text:'Morning review',createdAt:now-4000,reminderAt:null,migratedFrom:null,googleTaskId:null},
+      {id:genId(),date:today,type:'task',text:'Stretch + walk',createdAt:now-3000,reminderAt:null,migratedFrom:null,googleTaskId:null},
+      {id:genId(),date:today,type:'note',text:'Idea: weekly review ritual on Sundays',createdAt:now-2000,reminderAt:null,migratedFrom:null,googleTaskId:null},
+    ],
+    futureLog: fl,
+  };
+}
+
+// ── migration ─────────────────────────────────────────────────────────
+function migrate() {
+  const today=todayISO();
+  if(state.data.lastOpenedDate===today) return;
+  update(data => {
+    const fresh=[];
+    data.entries.forEach(e => {
+      if(e.type==='task' && e.date<today) {
+        e.type='migrated';
+        fresh.push({id:genId(),date:today,type:'task',text:e.text,createdAt:Date.now(),reminderAt:e.reminderAt,migratedFrom:e.date,googleTaskId:null});
+      }
+    });
+    data.entries=fresh.concat(data.entries);
+    data.lastOpenedDate=today;
+  });
+}
+
+// ── reminders ─────────────────────────────────────────────────────────
+function maybePerm() {
+  if('Notification' in window && Notification.permission==='default') {
+    try { Notification.requestPermission(); } catch(e){}
+  }
+}
+function arm(e) {
+  if(!e||!e.reminderAt) return;
+  const delay=e.reminderAt-Date.now();
+  if(delay<=0) return;
+  clearTimeout(timers[e.id]);
+  timers[e.id]=setTimeout(()=>fire(e.id), Math.min(delay,2147483647));
+}
+function fire(id) {
+  const e=state.data.entries.find(x=>x.id===id);
+  if(!e) return;
+  if('Notification' in window && Notification.permission==='granted') {
+    try { new Notification('Reminder',{body:e.text||'Reminder'}); } catch(er){}
+  }
+}
+
+function parseReminder(text) {
+  const now=new Date(); let m;
+  const mk=(h,min,dayOff)=>{ const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()+(dayOff||0),h,min,0,0); return d.getTime(); };
+  const hour=(hStr,ap)=>{ let h=parseInt(hStr,10); if(ap==='pm'&&h<12)h+=12; if(ap==='am'&&h===12)h=0; return h; };
+  m=text.match(/\bin\s+(\d+)\s*(minutes?|mins?|m|hours?|hrs?|h)\b/i);
+  if(m){ const n=parseInt(m[1],10); const ms=(m[2][0]==='h')?n*3600000:n*60000; return {at:Date.now()+ms,clean:strip(text,m[0])}; }
+  m=text.match(/\btomorrow\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
+  if(m){ const ap=(m[3]||'').toLowerCase(); const h=ap?hour(m[1],ap):parseInt(m[1],10); return {at:mk(h,m[2]?parseInt(m[2],10):0,1),clean:strip(text,m[0])}; }
+  m=text.match(/\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
+  if(m){ const h=hour(m[1],m[3].toLowerCase()); const min=m[2]?parseInt(m[2],10):0; let at=mk(h,min,0); if(at<=Date.now())at=mk(h,min,1); return {at,clean:strip(text,m[0])}; }
+  m=text.match(/\b(?:at\s+)?(\d{1,2}):(\d{2})\b/);
+  if(m){ const h=parseInt(m[1],10),min=parseInt(m[2],10); if(h<=23&&min<=59){ let at=mk(h,min,0); if(at<=Date.now())at=mk(h,min,1); return {at,clean:strip(text,m[0])}; } }
+  return null;
+}
+function strip(text,phrase){ return text.replace(phrase,'').replace(/\s{2,}/g,' ').trim(); }
+function formatRemind(at) {
+  const d=new Date(at);
+  const t=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  if(toISO(d)===todayISO()) return t;
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+t;
+}
+function timeStr(at){ const d=new Date(at); return pad(d.getHours())+':'+pad(d.getMinutes()); }
+
+// ── entry ops ─────────────────────────────────────────────────────────
+function addTask(raw) {
+  const text=raw.trim(); if(!text) return;
+  const parsed=parseReminder(text);
+  const id=genId();
+  const entry={id,date:todayISO(),type:'task',text:parsed?parsed.clean:text,createdAt:Date.now(),reminderAt:parsed?parsed.at:null,migratedFrom:null,googleTaskId:null};
+  if(parsed) maybePerm();
+  update(data=>{ data.entries.push(entry); });
+  if(parsed) setTimeout(()=>arm(entry),0);
+}
+
+const glyphFor = t => t==='done'?'✕':t==='migrated'?'→':t==='note'?'–':'•';
+
+function setType(id,type) {
+  let madeCopy=null;
+  update(data=>{
+    const e=data.entries.find(x=>x.id===id); if(!e) return;
+    e.type=type;
+    if(type==='migrated'){
+      const copy={id:genId(),date:addDays(e.date,1),type:'task',text:e.text,createdAt:Date.now(),reminderAt:e.reminderAt,migratedFrom:e.date,googleTaskId:null};
+      data.entries.push(copy); madeCopy=copy;
+    }
+  });
+  state.sigMenuFor=null;
+  if(madeCopy) setTimeout(()=>arm(madeCopy),0);
+}
+
+function setText(id,val){ update(data=>{ const e=data.entries.find(x=>x.id===id); if(e) e.text=val; }); }
+function toggleDone(id){ update(data=>{ const e=data.entries.find(x=>x.id===id); if(e) e.type=(e.type==='done'?'task':'done'); }); }
+
+function setReminderTime(id,hhmm) {
+  if(!hhmm){ setReminder(id,null); state.reminderFor=null; render(); return; }
+  const [h,mm]=hhmm.split(':').map(Number);
+  const now=new Date();
+  const d=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,mm,0,0);
+  if(d.getTime()<=Date.now()) d.setDate(d.getDate()+1);
+  setReminder(id,d.getTime());
+  state.reminderFor=null; render();
+}
+function setReminder(id,at) {
+  maybePerm();
+  let entry=null;
+  update(data=>{ const e=data.entries.find(x=>x.id===id); if(e){ e.reminderAt=at; entry=JSON.parse(JSON.stringify(e)); } });
+  if(at) setTimeout(()=>arm(entry),0); else clearTimeout(timers[id]);
+}
+
+function reassignMonth(id,key) {
+  update(data=>{ const e=data.entries.find(x=>x.id===id); if(!e) return;
+    const [y,mm]=key.split('-').map(Number);
+    const day=Math.min(fromISO(e.date).getDate(),daysInMonth(y,mm));
+    e.date=key+'-'+pad(day);
+  });
+  state.moveFor=null;
+}
+function reassignDate(id,iso){ update(data=>{ const e=data.entries.find(x=>x.id===id); if(e) e.date=iso; }); state.moveFor=null; }
+
+// ── future log ────────────────────────────────────────────────────────
+const futGlyph = t => t==='done'?'✕':t==='migrated'?'→':t==='task'?'•':'–';
+function parseFut(raw) {
+  const map={'•':'task','✕':'done','→':'migrated','–':'note'};
+  if(raw&&raw.length>1&&map[raw[0]]&&raw[1]===' ') return {type:map[raw[0]],text:raw.slice(2)};
+  return {type:'note',text:raw||''};
+}
+const encodeFut=(type,text)=>type==='note'?text:futGlyph(type)+' '+text;
+function futureLines(key){ return (state.data.futureLog[key]||'').split('\n').filter(l=>l.length>0); }
+function setFuture(key,text){ update(data=>{ data.futureLog[key]=text; }); }
+function setFutureLine(key,idx,val){ const lines=futureLines(key); const {type}=parseFut(lines[idx]||''); lines[idx]=encodeFut(type,val); setFuture(key,lines.join('\n')); }
+function setFutureType(key,idx,type){ const lines=futureLines(key); const {text}=parseFut(lines[idx]||''); lines[idx]=encodeFut(type,text); setFuture(key,lines.join('\n')); state.sigMenuFor=null; }
+function addFutureLine(key,val){ const v=val.trim(); if(!v) return; const lines=futureLines(key); lines.push(v); setFuture(key,lines.join('\n')); }
+
+// ── monthly add ───────────────────────────────────────────────────────
+function addMonthly(iso,val){ const text=val.trim(); if(!text) return; update(data=>{ data.entries.push({id:genId(),date:iso,type:'task',text,createdAt:Date.now(),reminderAt:null,migratedFrom:null,googleTaskId:null}); }); }
+
+// ── drag ──────────────────────────────────────────────────────────────
+function onDropMonth(key) {
+  const d=drag; drag=null; if(!d) return;
+  if(d.kind==='entry') reassignMonth(d.id,key);
+  else if(d.kind==='future') {
+    const lines=futureLines(d.fkey); if(lines[d.idx]==null) return;
+    const {type,text}=parseFut(lines[d.idx]); lines.splice(d.idx,1);
+    const entry={id:genId(),date:key+'-01',type:type==='note'?'task':type,text,createdAt:Date.now(),reminderAt:null,migratedFrom:null,googleTaskId:null};
+    update(data=>{ data.futureLog[d.fkey]=lines.join('\n'); data.entries.push(entry); });
+  }
+}
+function onDropDate(iso) {
+  const d=drag; drag=null; if(!d) return;
+  if(d.kind==='entry') reassignDate(d.id,iso);
+  else if(d.kind==='future') {
+    const lines=futureLines(d.fkey); if(lines[d.idx]==null) return;
+    const {type,text}=parseFut(lines[d.idx]); lines.splice(d.idx,1);
+    const entry={id:genId(),date:iso,type:type==='note'?'task':type,text,createdAt:Date.now(),reminderAt:null,migratedFrom:null,googleTaskId:null};
+    update(data=>{ data.futureLog[d.fkey]=lines.join('\n'); data.entries.push(entry); });
+  }
+}
+
+// ── nav ───────────────────────────────────────────────────────────────
+function go(view,month) { state.view=view; if(month) state.viewMonth=month; state.moveFor=null; state.reminderFor=null; state.sigMenuFor=null; render(); }
+
+// ── styles ────────────────────────────────────────────────────────────
+function tint(hex,a){ const h=hex.replace('#',''); const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16); return 'rgba('+r+','+g+','+b+','+a+')'; }
+function vstyle(color,active,alwaysBg) {
+  const bg=active?tint(color,0.24):(alwaysBg?tint(color,0.13):'transparent');
+  return 'background:'+bg+';color:'+color+';font-weight:'+(active?'700':'600')+';';
+}
+
+// ── sig opts ──────────────────────────────────────────────────────────
+const SIG_OPTS=[
+  {type:'task',glyph:'•',label:'Task',col:'#C2410C'},
+  {type:'done',glyph:'✕',label:'Done',col:'#211C16'},
+  {type:'migrated',glyph:'→',label:'Migrated',col:'#A9743A'},
+  {type:'note',glyph:'–',label:'Note',col:'#211C16'},
+];
+function sigMenuHTML(menuKey) {
+  return `<div class="sig-menu">
+    <div class="sig-menu-title">type</div>
+    ${SIG_OPTS.map(o=>`<button class="sig-opt-btn" data-action="sig" data-key="${menuKey}" data-type="${o.type}">
+      <span style="width:16px;text-align:center;flex:0 0 auto;color:${o.col};">${o.glyph}</span>${o.label}
+    </button>`).join('')}
+  </div>`;
+}
+
+// ── render ────────────────────────────────────────────────────────────
+function render() {
+  const today=todayISO(), view=state.view;
+
+  // nav rail
+  document.getElementById('btn-fut').style=vstyle(view==='future'?'#5A544A':'#A9A296',view==='future');
+  document.getElementById('btn-fut').textContent='FUT';
+  document.getElementById('btn-today').style=vstyle(view==='daily'?'#211C16':'#A9A296',view==='daily');
+  document.getElementById('btn-today').textContent='TODAY';
+  document.getElementById('btn-year').textContent=String(state.viewYear);
+
+  const railEl=document.getElementById('rail-months');
+  railEl.innerHTML='';
+  for(let m=1;m<=12;m++){
+    const key=state.viewYear+'-'+pad(m);
+    const active=view==='monthly'&&state.viewMonth===key;
+    const color=railColor(m-1);
+    const btn=document.createElement('button');
+    btn.className='v-btn';
+    btn.style=vstyle(color,active,true);
+    btn.textContent=monthShort(key);
+    btn.addEventListener('dragover',ev=>ev.preventDefault());
+    btn.addEventListener('drop',()=>onDropMonth(key));
+    btn.addEventListener('click',()=>go('monthly',key));
+    railEl.appendChild(btn);
+  }
+
+  // views
+  document.getElementById('view-daily').classList.toggle('hidden',view!=='daily');
+  document.getElementById('view-monthly').classList.toggle('hidden',view!=='monthly');
+  document.getElementById('view-future').classList.toggle('hidden',view!=='future');
+
+  // modals
+  document.getElementById('year-modal').classList.toggle('hidden',!state.yearModalOpen);
+  document.getElementById('settings-modal').classList.toggle('hidden',!state.settingsOpen);
+  document.getElementById('year-display').textContent=String(state.viewYear);
+  renderRecentYears();
+
+  if(view==='daily') renderDaily(today);
+  if(view==='monthly') renderMonthly(today);
+  if(view==='future') renderFuture();
+
+  // settings state
+  renderSettingsState();
+}
+
+function renderSettingsState() {
+  const url = localStorage.getItem('buJoGsUrl');
+  document.getElementById('gs-not-connected').classList.toggle('hidden', !!url);
+  document.getElementById('gs-connected').classList.toggle('hidden', !url);
+  if(url) {
+    document.getElementById('gs-url-input').value = url;
+    const sheetId = localStorage.getItem('buJoSheetId');
+    const link = document.getElementById('gs-sheet-link');
+    if(sheetId) { link.href=`https://docs.google.com/spreadsheets/d/${sheetId}`; link.style.display=''; }
+    else { link.style.display='none'; }
+  } else {
+    document.getElementById('gs-url-input').value = localStorage.getItem('buJoGsUrl') || '';
+  }
+  document.getElementById('gs-script-guide').classList.toggle('hidden', !state.gsScriptOpen);
+}
+
+function renderDaily(today) {
+  document.getElementById('daily-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  document.getElementById('btn-legend').textContent=state.legendOpen?'hide key':'key';
+  document.getElementById('legend-row').classList.toggle('hidden',!state.legendOpen);
+
+  const entries=state.data.entries.filter(e=>e.date===today);
+  const dailyOrder=entries.map(e=>e.id);
+  const container=document.getElementById('daily-entries');
+  container.innerHTML='';
+
+  entries.forEach(e=>{
+    const done=e.type==='done';
+    const glyphColor=e.type==='task'?'#C2410C':e.type==='note'?'#211C16':'#A9A296';
+    const menuKey=e.id;
+    const sigOpen=state.sigMenuFor===menuKey;
+    const wrap=document.createElement('div');
+
+    wrap.innerHTML=`
+      <div class="entry-row" draggable="true" data-id="${e.id}">
+        <div class="entry-glyph-wrap">
+          <button data-action="sigmenu" data-key="${menuKey}" style="width:20px;flex:0 0 auto;text-align:center;font-size:16px;line-height:1.5;color:${glyphColor};">${glyphFor(e.type)}</button>
+          ${sigOpen?sigMenuHTML(menuKey):''}
+        </div>
+        <input data-action="text" data-id="${e.id}" value="${escHtml(e.text)}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font-size:16px;line-height:1.5;padding:0;${done?'text-decoration:line-through;color:#A9A296;':'color:#211C16;'}" />
+        <div class="entry-actions">
+          ${state.reminderFor===e.id?`<input type="time" value="${e.reminderAt?timeStr(e.reminderAt):''}" data-action="time" data-id="${e.id}" style="border:none;border-bottom:1px solid rgba(194,65,12,0.45);background:transparent;outline:none;font-size:12px;padding:1px 0;color:#B45309;width:86px;" />`:''}
+          <button data-action="done" data-id="${e.id}" style="font-size:13px;line-height:1;color:${done?'#B45309':'#CFC8BC'};">&#10005;</button>
+          <button data-action="bell" data-id="${e.id}" style="display:flex;align-items:center;gap:5px;line-height:1;opacity:${e.reminderAt?'1':'0.5'};color:${e.reminderAt?'#B45309':'#9A9386'};"><span style="font-size:15px;">&#128276;</span><span style="font-size:12px;white-space:nowrap;">${e.reminderAt?formatRemind(e.reminderAt):''}</span></button>
+          <button data-action="move" data-id="${e.id}" style="font-size:15px;color:#C7C1B6;line-height:1;">&#8599;</button>
+        </div>
+      </div>
+      ${state.moveFor===e.id?movePanelHTML(e):''}`;
+
+    wrap.querySelector('.entry-row').addEventListener('dragstart',ev=>{ drag={kind:'entry',id:e.id}; if(ev.dataTransfer) ev.dataTransfer.effectAllowed='move'; });
+    const inp=wrap.querySelector('[data-action="text"]');
+    inp.addEventListener('change',ev=>setText(e.id,ev.target.value));
+    inp.addEventListener('keydown',ev=>onEntryKey(ev,e.id,dailyOrder));
+    wrap.querySelector('[data-action="sigmenu"]').addEventListener('click',()=>{ state.sigMenuFor=state.sigMenuFor===menuKey?null:menuKey; state.reminderFor=null; state.moveFor=null; render(); });
+    if(sigOpen) wrap.querySelectorAll('[data-action="sig"]').forEach(b=>b.addEventListener('click',()=>setType(e.id,b.dataset.type)));
+    wrap.querySelector('[data-action="done"]').addEventListener('click',()=>toggleDone(e.id));
+    wrap.querySelector('[data-action="bell"]').addEventListener('click',()=>{ state.reminderFor=state.reminderFor===e.id?null:e.id; state.sigMenuFor=null; state.moveFor=null; render(); });
+    if(state.reminderFor===e.id) wrap.querySelector('[data-action="time"]').addEventListener('change',ev=>setReminderTime(e.id,ev.target.value));
+    wrap.querySelector('[data-action="move"]').addEventListener('click',()=>{ state.moveFor=state.moveFor===e.id?null:e.id; state.reminderFor=null; state.sigMenuFor=null; render(); });
+    if(state.moveFor===e.id) bindMovePanel(wrap,e);
+    container.appendChild(wrap);
+  });
+}
+
+function movePanelHTML(e) {
+  const months=[];
+  for(let m=1;m<=12;m++){
+    const key=state.viewYear+'-'+pad(m);
+    months.push(`<button data-action="movemonth" data-key="${key}" style="font-size:12px;letter-spacing:0.06em;color:#8E877B;background:none;border:none;cursor:pointer;padding:2px 0;">${monthShort(key)}</button>`);
+  }
+  return `<div class="move-panel"><span>move to</span>${months.join('')}<input type="date" value="${e.date}" data-action="movedate" data-id="${e.id}" style="border:none;border-bottom:1px solid rgba(33,28,22,0.18);background:transparent;outline:none;font-size:12.5px;padding:2px 0;" /></div>`;
+}
+function bindMovePanel(wrap,e) {
+  wrap.querySelectorAll('[data-action="movemonth"]').forEach(b=>b.addEventListener('click',()=>reassignMonth(e.id,b.dataset.key)));
+  const di=wrap.querySelector('[data-action="movedate"]');
+  if(di) di.addEventListener('change',ev=>{ if(ev.target.value) reassignDate(e.id,ev.target.value); });
+}
+
+function renderMonthly(today) {
+  const [my,mm]=state.viewMonth.split('-').map(Number);
+  document.getElementById('monthly-title').textContent=monthLong(state.viewMonth);
+  const dim=daysInMonth(my,mm), wl=['S','M','T','W','T','F','S'];
+  const container=document.getElementById('monthly-rows');
+  container.innerHTML='';
+
+  for(let day=1;day<=dim;day++){
+    const iso=state.viewMonth+'-'+pad(day);
+    const dow=new Date(my,mm-1,day).getDay();
+    const isToday=iso===today;
+    const dayEntries=state.data.entries.filter(e=>e.date===iso);
+    const row=document.createElement('div');
+    row.className='month-row';
+    row.addEventListener('dragover',ev=>ev.preventDefault());
+    row.addEventListener('drop',()=>onDropDate(iso));
+    const labelStyle='flex:0 0 auto;width:46px;font-size:13px;'+(isToday?'color:#C2410C;font-weight:700;':'color:#6B655B;font-weight:500;');
+    const entriesHTML=dayEntries.map(e=>{
+      const sigColor=e.type==='done'||e.type==='migrated'?'#A9A296':e.type==='task'?'#C2410C':'#5A544A';
+      const menuKey='M:'+e.id, sigOpen=state.sigMenuFor===menuKey;
+      return `<div class="month-entry-row" draggable="true" data-id="${e.id}">
+        <div class="entry-glyph-wrap" style="flex:0 0 auto;">
+          <button data-action="sigmenum" data-key="${menuKey}" data-eid="${e.id}" style="width:16px;flex:0 0 auto;text-align:center;font-size:13px;line-height:1.5;color:${sigColor};">${glyphFor(e.type)}</button>
+          ${sigOpen?sigMenuHTML(menuKey):''}
+        </div>
+        <span style="font-size:13.5px;${e.type==='done'?'text-decoration:line-through;color:#A9A296;':'color:#3A352D;'}">${escHtml(e.text)}</span>
+      </div>`;
+    }).join('');
+    row.innerHTML=`
+      <div style="${labelStyle}">${day} ${wl[dow]}</div>
+      <div class="month-entries-col">
+        ${entriesHTML}
+        <label class="month-add-label">
+          <span style="width:16px;flex:0 0 auto;text-align:center;font-size:13px;line-height:1.5;color:#C2410C;opacity:0.5;">&bull;</span>
+          <input data-action="monthadd" data-iso="${iso}" placeholder="add…" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font-size:13.5px;padding:0;color:#211C16;" />
+        </label>
+      </div>`;
+    row.querySelectorAll('.month-entry-row').forEach(er=>er.addEventListener('dragstart',ev=>{ drag={kind:'entry',id:er.dataset.id}; if(ev.dataTransfer) ev.dataTransfer.effectAllowed='move'; }));
+    row.querySelectorAll('[data-action="sigmenum"]').forEach(b=>b.addEventListener('click',()=>{ state.sigMenuFor=state.sigMenuFor===b.dataset.key?null:b.dataset.key; render(); }));
+    row.querySelectorAll('[data-action="sig"]').forEach(b=>b.addEventListener('click',()=>setType(b.closest('[data-eid]')?.dataset.eid||'',b.dataset.type)));
+    row.querySelector('[data-action="monthadd"]').addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ addMonthly(iso,ev.target.value); ev.target.value=''; } });
+    container.appendChild(row);
+  }
+}
+
+function renderFuture() {
+  const container=document.getElementById('future-months');
+  container.innerHTML='';
+  for(let i=1;i<=6;i++){
+    const key=monthKey(addMonths(new Date(),i));
+    const lines=futureLines(key), color=railColor(i-1);
+    const block=document.createElement('div');
+    block.className='fut-month-block';
+    block.addEventListener('dragover',ev=>ev.preventDefault());
+    block.addEventListener('drop',()=>onDropMonth(key));
+    const linesHTML=lines.map((raw,idx)=>{
+      const p=parseFut(raw), menuKey='F:'+key+':'+idx, sigOpen=state.sigMenuFor===menuKey;
+      const gc=p.type==='task'?'#C2410C':(p.type==='done'||p.type==='migrated'?'#A9A296':'#9A9386');
+      return `<div class="fut-entry-row" draggable="true" data-fkey="${key}" data-idx="${idx}">
+        <div class="entry-glyph-wrap" style="flex:0 0 auto;">
+          <button data-action="sigmenuf" data-key="${menuKey}" style="width:18px;flex:0 0 auto;text-align:center;font-size:14px;line-height:1.5;color:${gc};">${futGlyph(p.type)}</button>
+          ${sigOpen?sigMenuHTML(menuKey):''}
+        </div>
+        <input value="${escHtml(p.text)}" data-action="futtext" data-fkey="${key}" data-idx="${idx}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font-size:14.5px;padding:2px 0;${p.type==='done'?'text-decoration:line-through;color:#A9A296;':'color:#211C16;'}" />
+      </div>`;
+    }).join('');
+    block.innerHTML=`
+      <div style="font-size:15px;font-weight:700;color:${color};margin-bottom:8px;">${monthLong(key)}</div>
+      <div style="display:flex;flex-direction:column;gap:4px;padding-left:2px;">
+        ${linesHTML}
+        <div style="display:flex;align-items:baseline;gap:9px;">
+          <span style="color:#B8AE9D;font-size:13px;">&#43;</span>
+          <input data-action="futadd" data-fkey="${key}" placeholder="add a deadline…" style="flex:1;border:none;background:transparent;outline:none;font-size:14.5px;padding:2px 0;" />
+        </div>
+      </div>`;
+    block.querySelectorAll('.fut-entry-row').forEach(er=>er.addEventListener('dragstart',ev=>{ drag={kind:'future',fkey:er.dataset.fkey,idx:parseInt(er.dataset.idx,10)}; if(ev.dataTransfer) ev.dataTransfer.effectAllowed='move'; }));
+    block.querySelectorAll('[data-action="sigmenuf"]').forEach(b=>b.addEventListener('click',()=>{ state.sigMenuFor=state.sigMenuFor===b.dataset.key?null:b.dataset.key; render(); }));
+    block.querySelectorAll('[data-action="sig"]').forEach(b=>{ const row=b.closest('.fut-entry-row'); if(row) b.addEventListener('click',()=>setFutureType(row.dataset.fkey,parseInt(row.dataset.idx,10),b.dataset.type)); });
+    block.querySelectorAll('[data-action="futtext"]').forEach(inp=>inp.addEventListener('change',ev=>setFutureLine(inp.dataset.fkey,parseInt(inp.dataset.idx,10),ev.target.value)));
+    block.querySelector('[data-action="futadd"]').addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ addFutureLine(key,ev.target.value); ev.target.value=''; } });
+    container.appendChild(block);
+  }
+}
+
+function renderRecentYears() {
+  const set=new Set();
+  state.data.entries.forEach(e=>set.add(parseInt(e.date.slice(0,4),10)));
+  Object.keys(state.data.futureLog||{}).forEach(k=>set.add(parseInt(k.slice(0,4),10)));
+  set.add(new Date().getFullYear()); set.add(state.viewYear);
+  const years=[...set].filter(y=>!isNaN(y)).sort((a,b)=>b-a).slice(0,5);
+  const container=document.getElementById('recent-years'); container.innerHTML='';
+  years.forEach(y=>{
+    const active=y===state.viewYear, btn=document.createElement('button');
+    btn.textContent=String(y);
+    btn.style=`font-size:15px;padding:9px 16px;border-radius:10px;cursor:pointer;font-weight:${active?'700':'500'};border:1px solid ${active?'rgba(194,65,12,0.5)':'rgba(33,28,22,0.13)'};background:${active?'rgba(194,65,12,0.12)':'transparent'};color:${active?'#C2410C':'#3A352D'};`;
+    btn.addEventListener('click',()=>{ state.viewYear=y; if(state.view==='monthly') state.viewMonth=y+'-'+state.viewMonth.split('-')[1]; render(); });
+    container.appendChild(btn);
+  });
+}
+
+function onEntryKey(ev,id,order) {
+  if((ev.metaKey||ev.ctrlKey)&&ev.key==='Enter'){ ev.preventDefault(); update(data=>{ const e=data.entries.find(x=>x.id===id); if(e) e.type='done'; }); return; }
+  if(ev.key==='Enter'){ ev.preventDefault(); ev.target.blur(); return; }
+  if(ev.key==='Escape'){ ev.target.blur(); return; }
+  if(ev.key==='ArrowUp'||ev.key==='ArrowDown'){
+    ev.preventDefault();
+    const i=order.indexOf(id), j=ev.key==='ArrowUp'?i-1:i+1;
+    if(j>=0&&j<order.length){ const el=document.getElementById('bj_'+order[j]); if(el) el.focus(); }
+  }
+}
+
+// ── global click: close menus ─────────────────────────────────────────
+document.addEventListener('click',ev=>{
+  if(!ev.target.closest('[data-action="sigmenu"],[data-action="sigmenum"],[data-action="sigmenuf"],.sig-menu')) {
+    if(state.sigMenuFor!==null){ state.sigMenuFor=null; render(); }
+  }
+});
+
+// ── static buttons ────────────────────────────────────────────────────
+document.getElementById('btn-fut').addEventListener('click',()=>go('future'));
+document.getElementById('btn-today').addEventListener('click',()=>go('daily'));
+document.getElementById('btn-year').addEventListener('click',()=>{ state.yearModalOpen=true; render(); });
+document.getElementById('btn-close-year').addEventListener('click',()=>{ state.yearModalOpen=false; render(); });
+document.getElementById('year-modal').addEventListener('click',ev=>{ if(ev.target===document.getElementById('year-modal')){ state.yearModalOpen=false; render(); } });
+document.getElementById('btn-year-down').addEventListener('click',()=>{ state.viewYear--; if(state.view==='monthly') state.viewMonth=state.viewYear+'-'+state.viewMonth.split('-')[1]; render(); });
+document.getElementById('btn-year-up').addEventListener('click',()=>{ state.viewYear++; if(state.view==='monthly') state.viewMonth=state.viewYear+'-'+state.viewMonth.split('-')[1]; render(); });
+document.getElementById('btn-legend').addEventListener('click',()=>{ state.legendOpen=!state.legendOpen; render(); });
+document.getElementById('logger-input').addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ addTask(ev.target.value); ev.target.value=''; } });
+document.getElementById('btn-settings').addEventListener('click',()=>{ state.settingsOpen=true; render(); });
+document.getElementById('btn-close-settings').addEventListener('click',()=>{ state.settingsOpen=false; render(); });
+document.getElementById('settings-modal').addEventListener('click',ev=>{ if(ev.target===document.getElementById('settings-modal')){ state.settingsOpen=false; render(); } });
+
+// ── settings: appearance ──────────────────────────────────────────────
+const dotPref = localStorage.getItem('buJoDotGrid');
+if(dotPref==='false') { document.body.classList.remove('dot-grid'); document.getElementById('toggle-dotgrid').checked=false; }
+const sansPref = localStorage.getItem('buJoSans');
+if(sansPref==='true') { document.body.classList.add('sans'); document.getElementById('toggle-sans').checked=true; }
+
+document.getElementById('toggle-dotgrid').addEventListener('change',ev=>{
+  document.body.classList.toggle('dot-grid',ev.target.checked);
+  localStorage.setItem('buJoDotGrid',ev.target.checked);
+});
+document.getElementById('toggle-sans').addEventListener('change',ev=>{
+  document.body.classList.toggle('sans',ev.target.checked);
+  localStorage.setItem('buJoSans',ev.target.checked);
+});
+
+// ── settings: data ────────────────────────────────────────────────────
+document.getElementById('btn-export').addEventListener('click',()=>{
+  const blob=new Blob([JSON.stringify(state.data,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='bulletjournal-'+todayISO()+'.json'; a.click();
+});
+document.getElementById('btn-clear-data').addEventListener('click',()=>{
+  if(confirm('Delete ALL journal data? This cannot be undone.')) {
+    localStorage.removeItem('buJoState'); localStorage.removeItem('buJoSheetId');
+    state.data=seedData(); persist(state.data); state.settingsOpen=false; render();
+  }
+});
+
+// ── Google Sheets + Tasks via Apps Script ─────────────────────────────
+const GS_SCRIPT = `// Bullet Journal — Apps Script backend
+// Deploy as Web App: Execute as Me, Anyone can access
+
+const SHEET_NAME = 'BulletJournal';
+
+function getOrCreateSpreadsheet() {
+  const id = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
+  if (id) {
+    try { return SpreadsheetApp.openById(id); } catch(e) {}
+  }
+  const ss = SpreadsheetApp.create(SHEET_NAME);
+  PropertiesService.getScriptProperties().setProperty('SHEET_ID', ss.getId());
+  return ss;
+}
+
+function getSheet(ss, name, headers) {
+  let sh = ss.getSheetByName(name);
+  if (!sh) {
+    sh = ss.insertSheet(name);
+    sh.appendRow(headers);
+    sh.getRange(1, 1, 1, headers.length)
+      .setFontWeight('bold')
+      .setBackground('#F3F0EB');
+  }
+  return sh;
+}
+
+function doPost(e) {
+  try {
+    const payload = JSON.parse(e.postData.contents);
+    const ss = getOrCreateSpreadsheet();
+    const data = payload.data;
+
+    // Entries sheet
+    const es = getSheet(ss, 'Entries',
+      ['id','year','month','day','date','type','text','reminderAt','migratedFrom','createdAt','googleTaskId']);
+    es.clearContents();
+    es.appendRow(['id','year','month','day','date','type','text','reminderAt','migratedFrom','createdAt','googleTaskId']);
+    es.getRange(1,1,1,11).setFontWeight('bold').setBackground('#F3F0EB');
+
+    const taskMap = {};  // id -> googleTaskId (updated below)
+    (data.entries || []).forEach(r => {
+      const d = new Date(r.date);
+      // Create/update Google Task for tasks with reminder
+      let taskId = r.googleTaskId || '';
+      if ((r.type === 'task' || r.type === 'done') && r.reminderAt) {
+        try {
+          const dueDate = new Date(r.reminderAt);
+          if (!taskId) {
+            const task = Tasks.newTask();
+            task.title = r.text;
+            task.due = dueDate.toISOString();
+            const created = Tasks.Tasks.insert(task, '@default');
+            taskId = created.id;
+          } else {
+            const task = Tasks.Tasks.get('@default', taskId);
+            task.title = r.text;
+            task.due = dueDate.toISOString();
+            task.status = r.type === 'done' ? 'completed' : 'needsAction';
+            Tasks.Tasks.update(task, '@default', taskId);
+          }
+        } catch(te) { taskId = r.googleTaskId || ''; }
+      } else if (r.type === 'done' && taskId) {
+        try {
+          const task = Tasks.Tasks.get('@default', taskId);
+          task.status = 'completed';
+          Tasks.Tasks.update(task, '@default', taskId);
+        } catch(te) {}
+      }
+      taskMap[r.id] = taskId;
+      es.appendRow([
+        r.id,
+        d.getFullYear(), d.getMonth()+1, d.getDate(),
+        r.date, r.type, r.text,
+        r.reminderAt || '', r.migratedFrom || '', r.createdAt, taskId
+      ]);
+    });
+
+    // FutureLog sheet
+    const fs = getSheet(ss, 'FutureLog', ['year','month','monthKey','type','text']);
+    fs.clearContents();
+    fs.appendRow(['year','month','monthKey','type','text']);
+    fs.getRange(1,1,1,5).setFontWeight('bold').setBackground('#F3F0EB');
+    Object.entries(data.futureLog || {}).forEach(([key, raw]) => {
+      const [y, m] = key.split('-').map(Number);
+      (raw || '').split('\\n').filter(l => l).forEach(line => {
+        const map = {'•':'task','✕':'done','→':'migrated','–':'note'};
+        const type = (line.length > 1 && map[line[0]] && line[1] === ' ') ? map[line[0]] : 'note';
+        const text = type !== 'note' ? line.slice(2) : line;
+        fs.appendRow([y, m, key, type, text]);
+      });
+    });
+
+    // Meta sheet
+    const ms = getSheet(ss, 'Meta', ['key','value']);
+    ms.clearContents();
+    ms.appendRow(['key','value']);
+    ms.appendRow(['lastOpenedDate', data.lastOpenedDate || '']);
+    ms.appendRow(['lastSync', new Date().toISOString()]);
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: true, spreadsheetId: ss.getId(), taskMap }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch(err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: false, error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet() {
+  const ss = getOrCreateSpreadsheet();
+  return ContentService
+    .createTextOutput(JSON.stringify({ ok: true, spreadsheetId: ss.getId() }))
+    .setMimeType(ContentService.MimeType.JSON);
+}`;
+
+document.getElementById('gs-script-code').textContent = GS_SCRIPT;
+
+// ── sync engine ───────────────────────────────────────────────────────
+let syncTimer = null;
+
+function setSyncStatus(s) {
+  const dot = document.getElementById('sync-dot');
+  dot.className = 'sync-dot' + (s !== 'idle' ? ' ' + s : '');
+  dot.title = s === 'idle' ? 'Synced' : s === 'saving' ? 'Saving…' : s === 'saved' ? 'Saved' : s === 'pending' ? 'Pending…' : 'Sync error';
+  const el = document.getElementById('gs-status-text');
+  if(el) {
+    el.textContent = s === 'saving' ? 'Saving to Google Sheets…' : s === 'saved' ? '✓ Saved' : s === 'error' ? '✗ Sync failed — check URL' : '';
+    el.style.color = s === 'error' ? '#DC2626' : s === 'saved' ? '#16A34A' : '#8E877B';
+  }
+}
+
+function scheduleSync() {
+  const url = localStorage.getItem('buJoGsUrl');
+  if(!url) return;
+  setSyncStatus('pending');
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(doSync, 2000);
+}
+
+async function doSync() {
+  const url = localStorage.getItem('buJoGsUrl');
+  if(!url) return;
+  setSyncStatus('saving');
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ data: state.data }),
+    });
+    const json = await res.json();
+    if(json.ok) {
+      if(json.spreadsheetId) localStorage.setItem('buJoSheetId', json.spreadsheetId);
+      // update googleTaskIds if returned
+      if(json.taskMap) {
+        const changed = Object.keys(json.taskMap).some(id => {
+          const e = state.data.entries.find(x=>x.id===id);
+          return e && e.googleTaskId !== json.taskMap[id];
+        });
+        if(changed) {
+          const data = JSON.parse(JSON.stringify(state.data));
+          Object.keys(json.taskMap).forEach(id => {
+            const e = data.entries.find(x=>x.id===id);
+            if(e) e.googleTaskId = json.taskMap[id];
+          });
+          persist(data);
+          state.data = data;
+        }
+      }
+      renderSettingsState();
+      setSyncStatus('saved');
+      setTimeout(()=>setSyncStatus('idle'), 3000);
+    } else {
+      setSyncStatus('error');
+    }
+  } catch(err) {
+    setSyncStatus('error');
+  }
+}
+
+// ── settings: Google connection ───────────────────────────────────────
+document.getElementById('btn-gs-save-url').addEventListener('click',()=>{
+  const url = document.getElementById('gs-url-input').value.trim();
+  if(!url) return;
+  localStorage.setItem('buJoGsUrl', url);
+  renderSettingsState();
+  doSync(); // immediate first sync
+});
+document.getElementById('btn-gs-disconnect').addEventListener('click',()=>{
+  localStorage.removeItem('buJoGsUrl');
+  localStorage.removeItem('buJoSheetId');
+  renderSettingsState();
+  setSyncStatus('idle');
+});
+document.getElementById('btn-gs-sync-now').addEventListener('click',()=>doSync());
+document.getElementById('btn-gs-show-script').addEventListener('click',()=>{ state.gsScriptOpen=!state.gsScriptOpen; render(); });
+document.getElementById('btn-copy-script').addEventListener('click',()=>{
+  navigator.clipboard.writeText(GS_SCRIPT).then(()=>{
+    const btn=document.getElementById('btn-copy-script');
+    btn.textContent='✓ Copied!';
+    setTimeout(()=>btn.textContent='Copy script',2000);
+  });
+});
+
+// ── init ──────────────────────────────────────────────────────────────
+migrate();
+state.data.entries.forEach(e=>arm(e));
+render();
+document.getElementById('logger-input').focus();
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+</script>
+</body>
+</html>

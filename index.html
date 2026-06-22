@@ -1227,8 +1227,12 @@ document.getElementById('btn-copy-script').addEventListener('click',()=>{
 });
 
 // ── init ──────────────────────────────────────────────────────────────
-// Auto-configure GS URL from shareable link hash (#gs=<encoded-url>)
-(()=>{ const h=new URLSearchParams(location.hash.slice(1)); const g=h.get('gs'); if(g){ localStorage.setItem('buJoGsUrl',decodeURIComponent(g)); history.replaceState(null,'',location.pathname+location.search); } })();
+// Auto-configure GS URL — from hash first, then hardcoded default
+(()=>{
+  const h=new URLSearchParams(location.hash.slice(1)); const g=h.get('gs');
+  if(g){ localStorage.setItem('buJoGsUrl',decodeURIComponent(g)); history.replaceState(null,'',location.pathname+location.search); }
+  else if(!localStorage.getItem('buJoGsUrl')){ localStorage.setItem('buJoGsUrl','https://script.google.com/macros/s/AKfycbzjuXxHy0jHUkUASpo-6VdTjZ5hgk2XkRmUZ3gcek72rzYUPlo5NRdfmXV4mEiCBxmqMQ/exec'); }
+})();
 migrate();
 state.data.entries.forEach(e=>arm(e));
 render();

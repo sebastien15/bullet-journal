@@ -159,7 +159,14 @@
       <div class="view-header">
         <div>
           <div class="view-label">Daily Log</div>
-          <div class="view-title" id="daily-date"></div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <button id="btn-day-prev" class="week-nav-btn">&#8249;</button>
+            <div style="position:relative;">
+              <div class="view-title" id="daily-date" style="cursor:pointer;" title="Click to pick a date"></div>
+              <input type="date" id="daily-date-pick" tabindex="-1" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;" />
+            </div>
+            <button id="btn-day-next" class="week-nav-btn">&#8250;</button>
+          </div>
         </div>
         <button id="btn-legend" style="font-size:12px;color:#8E877B;letter-spacing:0.04em;"></button>
       </div>
@@ -355,6 +362,7 @@ let state = {
   loggerType: 'task',
   loggerSigOpen: false,
   addTypes: {},  // key -> type for add-row type pickers
+  dailyDate: todayISO(),
 };
 
 const timers = {};
@@ -462,7 +470,7 @@ function addTask(raw) {
   const text=raw.trim(); if(!text) return;
   const parsed=parseReminder(text);
   const id=genId();
-  const entry={id,date:todayISO(),type:state.loggerType,text:parsed?parsed.clean:text,createdAt:Date.now(),reminderAt:parsed?parsed.at:null,migratedFrom:null,googleTaskId:null,googleCalendarEventId:null};
+  const entry={id,date:state.dailyDate,type:state.loggerType,text:parsed?parsed.clean:text,createdAt:Date.now(),reminderAt:parsed?parsed.at:null,migratedFrom:null,googleTaskId:null,googleCalendarEventId:null};
   if(parsed) maybePerm();
   state.loggerType='task'; // reset after add
   state.loggerSigOpen=false;
@@ -626,7 +634,7 @@ function render() {
     }));
   }
 
-  if(view==='daily') renderDaily(today);
+  if(view==='daily') renderDaily(state.dailyDate);
   if(view==='weekly') renderWeekly(today);
   if(view==='monthly') renderMonthly(today);
   if(view==='future') renderFuture();
@@ -648,12 +656,13 @@ function renderSettingsState() {
 }
 
 // ── daily render ──────────────────────────────────────────────────────
-function renderDaily(today) {
-  document.getElementById('daily-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+function renderDaily(viewDate) {
+  document.getElementById('daily-date').textContent=fromISO(viewDate).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  document.getElementById('daily-date-pick').value=viewDate;
   document.getElementById('btn-legend').textContent=state.legendOpen?'hide key':'key';
   document.getElementById('legend-row').classList.toggle('hidden',!state.legendOpen);
 
-  const entries=state.data.entries.filter(e=>e.date===today);
+  const entries=state.data.entries.filter(e=>e.date===viewDate);
   const dailyOrder=entries.map(e=>e.id);
   const container=document.getElementById('daily-entries'); container.innerHTML='';
   const n=entries.length;
@@ -937,7 +946,7 @@ document.addEventListener('click',ev=>{
 // ── static wiring ─────────────────────────────────────────────────────
 document.getElementById('btn-fut').addEventListener('click',()=>go('future'));
 document.getElementById('btn-week').addEventListener('click',()=>go('weekly'));
-document.getElementById('btn-today').addEventListener('click',()=>go('daily'));
+document.getElementById('btn-today').addEventListener('click',()=>{ state.dailyDate=todayISO(); go('daily'); });
 document.getElementById('btn-year').addEventListener('click',()=>{ state.yearModalOpen=true; render(); });
 document.getElementById('btn-close-year').addEventListener('click',()=>{ state.yearModalOpen=false; render(); });
 document.getElementById('year-modal').addEventListener('click',ev=>{ if(ev.target===document.getElementById('year-modal')){ state.yearModalOpen=false; render(); } });
@@ -949,6 +958,9 @@ document.getElementById('btn-close-settings').addEventListener('click',()=>{ sta
 document.getElementById('settings-modal').addEventListener('click',ev=>{ if(ev.target===document.getElementById('settings-modal')){ state.settingsOpen=false; render(); } });
 document.getElementById('btn-week-prev').addEventListener('click',()=>{ state.viewWeek=addDays(state.viewWeek,-7); render(); });
 document.getElementById('btn-week-next').addEventListener('click',()=>{ state.viewWeek=addDays(state.viewWeek,7); render(); });
+document.getElementById('btn-day-prev').addEventListener('click',()=>{ state.dailyDate=addDays(state.dailyDate,-1); render(); });
+document.getElementById('btn-day-next').addEventListener('click',()=>{ state.dailyDate=addDays(state.dailyDate,1); render(); });
+document.getElementById('daily-date-pick').addEventListener('change',ev=>{ if(ev.target.value){ state.dailyDate=ev.target.value; render(); } });
 
 // logger
 document.getElementById('logger-input').addEventListener('keydown',ev=>{
@@ -1233,7 +1245,6 @@ document.getElementById('btn-copy-script').addEventListener('click',()=>{
   if(g){ localStorage.setItem('buJoGsUrl',decodeURIComponent(g)); history.replaceState(null,'',location.pathname+location.search); }
   else if(!localStorage.getItem('buJoGsUrl')){ localStorage.setItem('buJoGsUrl','https://script.google.com/macros/s/AKfycbzjuXxHy0jHUkUASpo-6VdTjZ5hgk2XkRmUZ3gcek72rzYUPlo5NRdfmXV4mEiCBxmqMQ/exec'); }
 })();
-migrate();
 state.data.entries.forEach(e=>arm(e));
 render();
 document.getElementById('logger-input').focus();

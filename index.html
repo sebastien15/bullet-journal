@@ -1034,7 +1034,7 @@ function doPost(e) {
     const data = payload.data;
 
     // Persist full state JSON for load-back on new devices
-    PropertiesService.getScriptProperties().setProperty('STATE_JSON', JSON.stringify(data));
+    PropertiesService.getScriptProperties().setProperty('STATE_JSON', e.postData.contents);
 
     // Entries + Google Tasks + Google Calendar sync
     const taskIdMap = {};
@@ -1199,8 +1199,8 @@ async function loadFromCloud() {
     const loadUrl=url+(url.includes('?')?'&':'?')+'action=load';
     const res=await fetch(loadUrl);
     const json=await res.json();
-    if(!json.ok||!json.state||!json.state.entries) return;
-    const cloud=json.state;
+    if(!json.ok||!json.state||!json.state.data||!json.state.data.entries) return;
+    const cloud=json.state.data;
     // Quick check: same entry ids → nothing changed, skip re-render
     const localIds=new Set(state.data.entries.map(e=>e.id));
     const cloudIds=new Set(cloud.entries.map(e=>e.id));

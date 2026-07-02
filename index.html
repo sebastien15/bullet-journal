@@ -1169,9 +1169,7 @@ async function doSync() {
   const url=localStorage.getItem('buJoGsUrl'); if(!url) return;
   setSyncStatus('saving');
   try {
-    const payload=encodeURIComponent(JSON.stringify({data:state.data}));
-    const syncUrl=url+(url.includes('?')?'&':'?')+'data='+payload;
-    const res=await fetch(syncUrl);
+        const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({data:state.data})});
     const json=await res.json();
     if(!json.ok){ setSyncStatus('error'); return; }
     if(json.spreadsheetId) localStorage.setItem('buJoSheetId',json.spreadsheetId);

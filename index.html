@@ -1124,8 +1124,12 @@ history.replaceState(null,'',location.pathname+location.search);
 } catch(e){}
 }
 
-// If Firebase config is saved, reconnect
-const savedCfg=localStorage.getItem('buJoFbConfig');
+// Auto-connect: use saved config, or fall back to the default project config
+const DEFAULT_FB_CONFIG = {"apiKey":"AIzaSyBkAvP9M_CWDDrJwb5VjLsDCQwjAwMw78o","authDomain":"bullet-journal-3da86.firebaseapp.com","projectId":"bullet-journal-3da86","storageBucket":"bullet-journal-3da86.firebasestorage.app","messagingSenderId":"219138388259","appId":"1:219138388259:web:dc81cb7e9a208d637f1c96"};
+const savedCfg = localStorage.getItem('buJoFbConfig') || JSON.stringify(DEFAULT_FB_CONFIG);
+if (!localStorage.getItem('buJoFbConfig')) {
+  localStorage.setItem('buJoFbConfig', JSON.stringify(DEFAULT_FB_CONFIG));
+}
 if(savedCfg){
 try {
 const cfg=JSON.parse(savedCfg);

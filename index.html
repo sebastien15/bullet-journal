@@ -1062,9 +1062,8 @@ const cloudData = result.snap && result.snap.exists() ? result.snap.data().state
 if(cloudData && cloudData.entries && cloudData.entries.length > 0) {
 const localIds = new Set(state.data.entries.map(e=>e.id));
 const cloudIds = new Set(cloudData.entries.map(e=>e.id));
-const localOnly = state.data.entries.filter(e=>!cloudIds.has(e.id));
-state.data.entries = [...cloudData.entries, ...localOnly];
-state.data.futureLog = Object.assign({}, cloudData.futureLog, state.data.futureLog);
+const cloudOnly = cloudData.entries.filter(e=>!localIds.has(e.id));
+state.data.entries = [...state.data.entries, ...cloudOnly];state.data.futureLog = Object.assign({}, cloudData.futureLog, state.data.futureLog);
 persist(state.data);
 }
 
@@ -1081,8 +1080,7 @@ const localIds = new Set(state.data.entries.map(e=>e.id));
 const cloudIds = new Set(cloudState.entries.map(e=>e.id));
 const same = localIds.size===cloudIds.size && [...cloudIds].every(id=>localIds.has(id));
 if(same) return;
-const localOnly = state.data.entries.filter(e=>!cloudIds.has(e.id));
-state.data.entries = [...cloudState.entries, ...localOnly];
+const cloudOnly = cloudState.entries.filter(e=>!localIds.has(e.id));state.data.entries = [...state.data.entries, ...cloudOnly];
 state.data.futureLog = Object.assign({}, state.data.futureLog, cloudState.futureLog);
 persist(state.data);
 render();

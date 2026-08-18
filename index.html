@@ -1140,8 +1140,7 @@ const localIds=new Set(state.data.entries.map(e=>e.id));
 const cloudIds=new Set(cloudData.entries.map(e=>e.id));
 const same=localIds.size===cloudIds.size&&[...cloudIds].every(id=>localIds.has(id));
 if(!same){
-const localOnly=state.data.entries.filter(e=>!cloudIds.has(e.id));
-state.data.entries=[...cloudData.entries,...localOnly];
+const cloudOnly=cloudData.entries.filter(e=>!localIds.has(e.id));state.data.entries=[...state.data.entries,...cloudOnly];
 state.data.futureLog=Object.assign({},state.data.futureLog,cloudData.futureLog);
 persist(state.data);
 }
@@ -1154,17 +1153,13 @@ const localIds=new Set(state.data.entries.map(e=>e.id));
 const cloudIds=new Set(cloudState.entries.map(e=>e.id));
 const same=localIds.size===cloudIds.size&&[...cloudIds].every(id=>localIds.has(id));
 if(same) return;
-const localOnly=state.data.entries.filter(e=>!cloudIds.has(e.id));
-state.data.entries=[...cloudState.entries,...localOnly];
-state.data.futureLog=Object.assign({},state.data.futureLog,cloudState.futureLog);
+const cloudOnly=cloudState.entries.filter(e=>!localIds.has(e.id));state.data.entries=[...state.data.entries,...cloudOnly];state.data.futureLog=Object.assign({},state.data.futureLog,cloudState.futureLog);
 persist(state.data);
 render();
 });
 }
 } catch(e){ console.warn('Firebase reconnect failed',e); }
-}
-
-state.data.entries.forEach(e=>arm(e));
+}state.data.entries.forEach(e=>arm(e));
 render();
 document.getElementById('logger-input').focus();
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/bullet-journal/sw.js');
